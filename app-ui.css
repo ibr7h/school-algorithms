@@ -48,3 +48,12 @@
 }
 @media (prefers-reduced-motion:reduce){.ui-action{transition:none!important;}}
 @media print {#pwa-hint,#pwa-install-btn{display:none!important;}}
+
+/* Touch regression: canvas gestures must never swallow toolbar/simulator taps. */
+@media (max-width:960px){
+ #canvas-container{touch-action:auto!important;}
+ #viewport-world,#viewport-world .node-base,#viewport-world .note-card,#viewport-world .free-text-item{touch-action:none!important;}
+ #canvas-toolbar,#canvas-toolbar button,#simulation-panel button,#simulation-panel select,#simulation-panel input{touch-action:manipulation!important;}
+ #simulation-panel{touch-action:pan-y!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+ #simulation-panel pre{touch-action:pan-y!important;}
+}
