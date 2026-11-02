@@ -1,5 +1,5 @@
 /* Scope-relative app shell: no CDN dependencies, no cross-origin caching. */
-const VERSION='school-algorithms-pwa-v2-touch-controls-20261102';
+const VERSION='school-algorithms-pwa-v3-stable-pointer-drag-20261102';
 const CACHE=`${VERSION}-shell`;
 const SHELL=['./','./index.html','./tailwind-local.css','./app-ui.css','./ui-icons.js','./pwa.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/maskable-512.png','./icons/apple-touch-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
