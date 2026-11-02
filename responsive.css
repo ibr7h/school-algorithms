@@ -1,0 +1,73 @@
+
+/* Responsive layer for school-algorithms — preserves the desktop workspace. */
+#mobile-header, #mobile-scrim { display:none; }
+#sidebar-panel { min-height:0; }
+#main-area { min-width:0; min-height:0; }
+#canvas-container { min-height:0; }
+#workspaces-tabs { min-width:0; }
+#project-controls { min-width:0; }
+#python-import-modal, #code-modal { padding:12px; box-sizing:border-box; }
+#python-import-modal > div, #code-modal > div { max-height:94dvh; overflow:auto; min-height:0; }
+#python-modal-input { -webkit-overflow-scrolling:touch; }
+button { -webkit-tap-highlight-color:transparent; }
+@media (max-width: 900px) {
+  html,body { width:100%; height:100%; height:100dvh; overflow:hidden; }
+  body { display:flex!important; flex-direction:column!important; min-width:0; }
+  #mobile-header { display:flex; flex:0 0 auto; min-height:54px; align-items:center; gap:10px;
+    padding:7px 12px; padding-top:max(7px,env(safe-area-inset-top));
+    background:#0f172a; color:#fff; z-index:60; border-bottom:1px solid #334155; }
+  #mobile-menu-button { min-height:40px; min-width:44px; display:flex; align-items:center;
+    justify-content:center; border:1px solid #475569; background:#1e293b; color:#fff;
+    border-radius:10px; font-size:22px; cursor:pointer; }
+  #mobile-header-title { font-size:14px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #mobile-scrim { position:fixed; inset:0; z-index:70; background:rgba(15,23,42,.55); }
+  #mobile-scrim.is-open { display:block; }
+  #sidebar-panel { position:fixed!important; z-index:80!important; right:0; top:0; bottom:0;
+    height:100dvh!important; width:min(86vw,360px)!important; max-width:360px;
+    transform:translateX(105%); transition:transform .22s ease;
+    box-shadow:-12px 0 35px rgba(0,0,0,.25); }
+  #sidebar-panel.is-open { transform:translateX(0); }
+  #sidebar-panel > div:first-child { padding-top:max(16px,env(safe-area-inset-top)); padding-left:56px; }
+  #mobile-close-button { display:block!important; position:absolute; top:max(12px,env(safe-area-inset-top));
+    left:12px; z-index:85; height:37px; width:37px; color:#fff; background:#334155;
+    border:1px solid #64748b; border-radius:9px; font-size:23px; }
+  #main-area { width:100%; flex:1 1 auto!important; height:auto!important; min-height:0; }
+  #workspaces-bar { padding:6px 8px!important; gap:6px; }
+  #workspaces-tabs { flex:1 1 100%; order:2; min-height:34px; }
+  #workspaces-bar > div:last-child { order:1; width:100%; flex:0 0 auto; justify-content:flex-end; }
+  #workspaces-bar > div:last-child button { min-height:34px; }
+  #project-controls { gap:6px!important; padding:6px 8px!important; overflow-x:auto;
+    flex-wrap:nowrap!important; min-height:48px; scrollbar-width:thin; }
+  #project-controls > button { flex:0 0 auto; white-space:nowrap; min-height:36px; }
+  #project-save-status { display:none; }
+  #canvas-container { flex:1 1 auto!important; }
+  #floating-hint { display:none!important; }
+  #canvas-toolbar { bottom:max(8px,env(safe-area-inset-bottom))!important; right:8px!important;
+    left:8px!important; width:auto; max-width:calc(100% - 16px);
+    padding:8px!important; overflow-x:auto; gap:7px!important; border-radius:12px!important;
+    white-space:nowrap; scrollbar-width:thin; }
+  #canvas-toolbar button { min-width:35px; min-height:36px; flex:0 0 auto; }
+  #canvas-toolbar > div { flex:0 0 auto; }
+  #code-modal, #python-import-modal { align-items:stretch!important; justify-content:center!important; }
+  #code-modal > div, #python-import-modal > div { width:100%!important; max-width:100%!important;
+    max-height:calc(100dvh - 24px)!important; min-height:0; padding:14px!important;
+    border-radius:14px; overflow-y:auto; }
+  #code-modal h2, #python-import-modal h2 { font-size:17px!important; padding-left:25px; line-height:1.5; }
+  #python-import-modal > div > div { min-width:0; }
+  .python-editor-shell { min-height:210px!important; height:39dvh; max-height:46dvh!important; }
+  .python-editor-input, .python-editor-highlight { font-size:16px!important; }
+  #sidebar-panel input, #sidebar-panel textarea, #sidebar-panel select { font-size:16px!important; }
+  #flow-check-modal > div { width:calc(100vw - 20px)!important; max-height:calc(100dvh - 22px)!important; }
+  #flow-check-list { max-height:45dvh!important; }
+  #workspace-name-input { min-width:0; flex:1; width:auto!important; }
+  #workspace-rename-bar { padding:8px!important; }
+  #workspace-rename-bar button { flex:0 0 auto; }
+  #canvas-container, #viewport-world, #nodes-layer, #edges-layer { touch-action:none; }
+  .node-base, .note-card, .free-text-item, .resize-handle { touch-action:none; }
+}
+@media (min-width: 901px) and (max-width:1200px) {
+  #sidebar-panel { width:270px!important; }
+  #canvas-toolbar { max-width:calc(100% - 32px); overflow-x:auto; }
+}
+@media (prefers-reduced-motion: reduce) { #sidebar-panel { transition:none!important; } }
+@media print { #mobile-header, #mobile-scrim, #mobile-close-button { display:none!important; } }
