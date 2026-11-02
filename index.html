@@ -476,6 +476,27 @@
         @media print {
             #mobile-app-header,#mobile-backdrop,#mobile-sidebar-close { display:none !important; }
         }
+
+        /* Explicit, touch-friendly confirmation: never rely on browser-native confirm(). */
+        .python-replace-overlay { position: fixed; inset: 0; z-index: 300;
+            align-items: center; justify-content: center; padding: 16px;
+            background: rgba(7, 15, 31, .76); box-sizing: border-box; }
+        .python-replace-overlay:not([hidden]) { display: flex; }
+        .python-replace-overlay[hidden] { display: none !important; }
+        .python-replace-card { width: min(440px, 100%); border-radius: 16px;
+            background: #fff; color: #0f172a; padding: 22px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.4); box-sizing: border-box; }
+        .python-replace-card h2 { font-size: 19px; font-weight: 800; margin: 0 0 12px; }
+        .python-replace-card p { font-size: 14px; line-height: 1.85; margin: 0 0 12px; }
+        .python-replace-card .python-replace-tip { color: #475569; font-size: 12px; }
+        .python-replace-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+        .python-replace-actions button { border: 0; border-radius: 10px; cursor: pointer;
+            padding: 12px; font-size: 14px; min-height: 46px; font-weight: 750;
+            flex: 1 1 160px; touch-action: manipulation; }
+        #python-replace-cancel { background: #e2e8f0; color: #0f172a; }
+        #python-replace-accept { background: #b45309; color: white; }
+        .python-replace-actions button:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+
 </style>
     <link rel="stylesheet" href="./app-ui.css">
     <script src="./ui-icons.js" defer></script>
@@ -896,6 +917,20 @@ if score >= 90:
                 <button type="button" onclick="closeFlowValidation()" class="px-4 py-2 bg-slate-700 text-white hover:bg-slate-800 rounded-lg text-sm font-bold">إغلاق</button>
             </div>
         </div>
+    </div>
+
+
+    <!-- In-app confirmation: native confirm() is unreliable in some iOS standalone PWAs. -->
+    <div id="python-replace-confirm" class="python-replace-overlay" hidden role="alertdialog" aria-modal="true" aria-labelledby="python-replace-heading" aria-describedby="python-replace-description">
+      <div class="python-replace-card" dir="rtl">
+        <h2 id="python-replace-heading">استبدال المخططات الحالية؟</h2>
+        <p id="python-replace-description">سيتم استبدال جميع أشكال المخطط وأسهمه في منطقة العمل الحالية بالمخطط الناتج من الكود. يمكنك التراجع بعد العملية، ولن تتأثر مناطق العمل الأخرى.</p>
+        <p class="python-replace-tip">تُحفظ الرسومات الحرة والملاحظات والنصوص المستقلة دون تغيير.</p>
+        <div class="python-replace-actions">
+          <button id="python-replace-cancel" type="button">إلغاء — احتفظ بالمخطط</button>
+          <button id="python-replace-accept" type="button">تأكيد الاستبدال</button>
+        </div>
+      </div>
     </div>
 
     <!-- Application Logic -->
@@ -3069,6 +3104,7 @@ if score >= 90:
         }
 
         function closePythonImportModal() {
+            syncSidebarFromPythonEditor();
             const { modal } = getPythonModalElements();
             if (modal) modal.classList.add('hidden');
         }
@@ -3081,15 +3117,16 @@ if score >= 90:
             input.focus();
         }
 
-        function convertPythonToFlowchartFromModal(mode = 'append') {
+        async function convertPythonToFlowchartFromModal(mode = 'append') {
             syncSidebarFromPythonEditor();
             showPythonConversionStatus('');
             const modalStatus = document.getElementById('python-modal-conversion-status');
             if (modalStatus) modalStatus.textContent = '';
-            convertPythonToFlowchart(mode);
+            const converted = await convertPythonToFlowchart(mode);
             const result = document.getElementById('python-conversion-status')?.textContent || '';
-            if (result.startsWith('✓')) closePythonImportModal();
+            if (converted) closePythonImportModal();
             else if (modalStatus) modalStatus.textContent = result || 'لم يُغيَّر المخطط.';
+            return converted;
         }
 
         function loadSamplePythonCode(openInModal = false) {
@@ -3537,29 +3574,70 @@ print(result)`;
             return {tails, breaks, continues, nextY: y};
         }
 
+        let pythonConversionBusy = false;
+        function confirmPythonReplacement() {
+            return new Promise(resolve => {
+                const overlay = document.getElementById('python-replace-confirm');
+                const yes = document.getElementById('python-replace-accept');
+                const no = document.getElementById('python-replace-cancel');
+                if (!overlay || !yes || !no) { resolve(false); return; }
+                const previousFocus = document.activeElement;
+                let settled = false;
+                const finish = confirmed => {
+                    if (settled) return;
+                    settled = true;
+                    overlay.hidden = true;
+                    yes.removeEventListener('click', accept);
+                    no.removeEventListener('click', cancel);
+                    overlay.removeEventListener('click', outside);
+                    document.removeEventListener('keydown', keyboard, true);
+                    if (previousFocus && previousFocus.isConnected) previousFocus.focus({preventScroll:true});
+                    resolve(confirmed);
+                };
+                const accept = () => finish(true);
+                const cancel = () => finish(false);
+                const outside = e => { if (e.target === overlay) cancel(); };
+                const keyboard = e => {
+                    if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); cancel(); }
+                    if (e.key === 'Tab') {
+                        const target = document.activeElement;
+                        if (e.shiftKey && target === no) { e.preventDefault(); yes.focus(); }
+                        else if (!e.shiftKey && target === yes) { e.preventDefault(); no.focus(); }
+                    }
+                };
+                yes.addEventListener('click', accept);
+                no.addEventListener('click', cancel);
+                overlay.addEventListener('click', outside);
+                document.addEventListener('keydown', keyboard, true);
+                overlay.hidden = false;
+                no.focus({preventScroll:true});
+            });
+        }
+
         // Parse Python Code (Standard Python or Graphviz code) into Flowchart
-        function convertPythonToFlowchart(mode = 'append') {
+        async function convertPythonToFlowchart(mode = 'append') {
+            if (pythonConversionBusy) return false;
             const rawCode = document.getElementById('python-input-area').value;
             if (!rawCode.trim()) {
                 showPythonConversionStatus('الصق كود بايثون أولًا، ثم اختر إضافة مخطط جديد.', true);
-                return;
+                return false;
             }
             if (rawCode.length > 50000) {
                 showPythonConversionStatus('الكود طويل جدًا؛ الحد المسموح 50,000 حرف.', true);
-                return;
+                return false;
             }
-            if (mode !== 'append' && mode !== 'replace') return;
+            if (mode !== 'append' && mode !== 'replace') return false;
             const isGraphviz = rawCode.includes('dot.node(') && rawCode.includes('dot.edge(');
             if (isGraphviz && !/dot\.node\(\s*'[^']+'\s*,\s*'[^']*'/.test(rawCode)) {
                 showPythonConversionStatus('تعذر التعرف على عقد Graphviz؛ لم تُعدَّل الرسوم الحالية.', true);
-                return;
+                return false;
             }
             if (!isGraphviz && !rawCode.split('\n').some(line => {
                 const t = line.trim();
                 return t && !t.startsWith('#') && !t.startsWith('"""') && !t.startsWith(String.fromCharCode(39, 39, 39));
             })) {
                 showPythonConversionStatus('لا توجد تعليمات قابلة للتحويل في النص المدخل.', true);
-                return;
+                return false;
             }
             let structuredStatements = null;
             if (!isGraphviz) {
@@ -3567,16 +3645,25 @@ print(result)`;
                     structuredStatements = parsePythonFlowStatements(rawCode);
                 } catch (err) {
                     showPythonConversionStatus(`تعذّر التحويل: ${err.message}`, true);
-                    return;
+                    return false;
                 }
             }
-            if (mode === 'replace' && (state.nodes.length || state.edges.length) &&
-                !confirm('سيُحذف جميع الأشكال والأسهم الحالية في هذه المنطقة ويحل المخطط الجديد محلها. يمكن التراجع عن ذلك. هل تريد المتابعة؟')) {
-                return;
-            }
-            commitProjectChange();
+            pythonConversionBusy = true;
+            let previousSnapshot = null;
+            try {
+                if (mode === 'replace' && (state.nodes.length || state.edges.length)) {
+                    showPythonConversionStatus('يرجى تأكيد الاستبدال أو إلغاءه من نافذة التأكيد.');
+                    const approved = await confirmPythonReplacement();
+                    if (!approved) {
+                        showPythonConversionStatus('تم إلغاء الاستبدال؛ لم تتغير المخططات.', true);
+                        return false;
+                    }
+                }
+                // Another programmatic action may change state while the prompt is displayed;
+                // commit the current baseline before preserving the undo snapshot.
+                commitProjectChange();
             const previousBounds = mode === 'append' ? getWorkspaceBounds() : null;
-            const previousSnapshot = snapshotProject();
+            previousSnapshot = snapshotProject();
             if (mode === 'replace') {
                 state.nodes.length = 0;
                 state.edges.length = 0;
@@ -3615,8 +3702,9 @@ print(result)`;
                 if (!finishPythonImport(previousNodeCount, previousBounds, mode)) {
                     applyProjectSnapshot(previousSnapshot);
                     showPythonConversionStatus('لم تُعثر على أشكال Graphviz قابلة للتحويل؛ بقيت الرسوم محفوظة.', true);
+                    return false;
                 }
-                return;
+                return true;
             }
 
             // Case 2: structured Python if / elif / else, for / while, and basic statements.
@@ -3628,7 +3716,7 @@ print(result)`;
             if (flow.breaks.length || flow.continues.length) {
                 applyProjectSnapshot(previousSnapshot);
                 showPythonConversionStatus('تعذر تحديد الحلقة المستهدفة في تعليمة break أو continue.', true);
-                return;
+                return false;
             }
             const endId = createNode('start', centerX - 70, flow.nextY + 15, 'النهاية', COLORS.start);
             state.nodes.find(n=>n.id===endId).sim={kind:'end',labelSaved:'النهاية'};
@@ -3638,7 +3726,15 @@ print(result)`;
                     ...(previous.routing ? {routing: previous.routing} : {})});
             });
 
-            finishPythonImport(previousNodeCount, previousBounds, mode);
+            return finishPythonImport(previousNodeCount, previousBounds, mode);
+            } catch (error) {
+                // An unexpected render/geometry error must never destroy existing work.
+                if (typeof previousSnapshot === 'string') applyProjectSnapshot(previousSnapshot);
+                showPythonConversionStatus(`تعذّر الاستبدال: ${error.message || error}`, true);
+                return false;
+            } finally {
+                pythonConversionBusy = false;
+            }
         }
 
 
@@ -4051,7 +4147,10 @@ print(result)`;
             });
             const pythonModalInput = document.getElementById('python-modal-input');
             if (pythonModalInput) {
-                pythonModalInput.addEventListener('input', updatePythonEditorView);
+                pythonModalInput.addEventListener('input', () => {
+                    updatePythonEditorView();
+                    syncSidebarFromPythonEditor();
+                });
                 pythonModalInput.addEventListener('scroll', updatePythonEditorView);
                 ['click', 'keyup', 'select'].forEach(name => pythonModalInput.addEventListener(name, updatePythonEditorCaretStatus));
                 pythonModalInput.addEventListener('keydown', (event) => {
