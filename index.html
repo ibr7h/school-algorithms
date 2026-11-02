@@ -3989,7 +3989,10 @@ print(result)`;
         });
 
         window.onload = () => {
+            let initialProject = false;
+            try {initialProject = !!localStorage.getItem(PROJECT_STORAGE_KEY);} catch {}
             init();
+            if (!initialProject && window.innerWidth <= 960) fitAllWorkspaceContent();
             installTouchCanvas();
             const pythonModalInput = document.getElementById('python-modal-input');
             if (pythonModalInput) {
