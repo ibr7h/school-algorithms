@@ -4,9 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
-    <title>مصمم المخططات الانسيابية - Flowchart Builder</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>الخوارزميات المدرسية | مصمم المخططات</title>
+    <meta name="application-name" content="الخوارزميات المدرسية">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="الخوارزميات">
+    <meta name="description" content="تطبيق مدرسي عربي لتصميم المخططات الانسيابية وتحويل Python إلى رسوم ومحاكاة التنفيذ">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="./tailwind-local.css">
+
     <style>
         html, body {
             height: 100%;
@@ -469,6 +477,9 @@
             #mobile-app-header,#mobile-backdrop,#mobile-sidebar-close { display:none !important; }
         }
 </style>
+    <link rel="stylesheet" href="./app-ui.css">
+    <script src="./ui-icons.js" defer></script>
+    <script src="./pwa.js" defer></script>
 </head>
 <body class="flex bg-slate-50 text-slate-800">
     <div id="mobile-backdrop" onclick="closeMobileTools()" aria-hidden="true"></div>

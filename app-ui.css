@@ -1,0 +1,50 @@
+/* Compact action system: visual-first on mobile, labels retained on large screens. */
+.ui-action{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;vertical-align:middle;white-space:nowrap;}
+.ui-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:19px;height:19px;pointer-events:none;}
+.ui-icon svg{width:100%;height:100%;display:block;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
+.ui-action-label{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;pointer-events:none;}
+.ui-action:focus-visible, #pwa-install-btn:focus-visible, #pwa-update-btn:focus-visible {outline:3px solid #38bdf8;outline-offset:2px;}
+#pwa-install-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #475569;border-radius:10px;min-height:40px;min-width:42px;padding:6px 10px;color:#fff;background:#1e293b;cursor:pointer;}
+#pwa-install-btn .ui-icon{width:21px;height:21px;}
+#pwa-install-btn .ui-action-label{font-size:11px;font-weight:700;}
+#pwa-hint{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:130;background:#0f172a;color:#fff;border:1px solid #475569;box-shadow:0 16px 50px #0006;border-radius:14px;padding:13px;display:none;align-items:center;gap:14px;font-size:13px;line-height:1.6;max-width:520px;margin-inline:auto;}
+#pwa-hint.is-visible{display:flex;}
+#pwa-hint button{min-height:38px;border:1px solid #64748b;border-radius:8px;color:#fff;background:#334155;padding:5px 10px;font-weight:700;flex:0 0 auto;}
+#pwa-hint-text{flex:1 1 auto;}
+#pwa-update-btn{background:#0284c7!important;border-color:#7dd3fc!important;}
+#project-controls{scrollbar-width:thin;}
+#mobile-app-header{gap:8px;}
+@media (max-width:960px){
+ #mobile-app-header{padding-inline:10px!important;}
+ #mobile-app-header strong{font-size:13px!important;}
+ #mobile-app-header > button[onclick*="fitAllWorkspaceContent"]{min-height:40px;min-width:42px;padding:7px!important;}
+ #project-controls .ui-action,
+ #canvas-toolbar .ui-action,
+ #workspaces-bar > div:last-child .ui-action,
+ #mobile-app-header .ui-action {width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;padding:0!important;border-radius:10px!important;flex-shrink:0;}
+ #project-controls .ui-action-label,
+ #canvas-toolbar .ui-action-label,
+ #workspaces-bar > div:last-child .ui-action-label,
+ #mobile-app-header .ui-action-label,
+ #pwa-install-btn .ui-action-label {display:none!important;}
+ #project-controls .ui-icon,#canvas-toolbar .ui-icon,#workspaces-bar .ui-icon,#mobile-app-header .ui-icon {width:21px;height:21px;}
+ #project-controls{gap:7px!important;min-height:56px;}
+ #canvas-toolbar{gap:7px!important;}
+ #canvas-toolbar #zoom-level-label{min-width:42px!important;font-size:11px!important;}
+ #workspaces-bar > div:last-child{gap:6px!important;}
+ #mobile-sidebar-close{min-height:44px!important;}
+ /* Keep action explanations in the off-canvas tools panel. */
+ #sidebar-panel .ui-action{justify-content:center;white-space:normal;}
+ #sidebar-panel .ui-action-label{white-space:normal;}
+ #python-import-modal .ui-action-label, #flow-check-modal .ui-action-label{display:inline-flex!important;white-space:normal;}
+ #python-import-modal button, #flow-check-modal button, #simulator-modal button{min-height:40px;}
+ #python-import-modal input,#python-import-modal textarea,#sidebar-panel input,#sidebar-panel textarea {font-size:16px!important;}
+ #canvas-container {touch-action:none;}
+}
+@media (max-width:390px){
+ #mobile-app-header > div {max-width:calc(100% - 155px);}
+ #mobile-app-header strong {font-size:12px!important;}
+ #project-controls .ui-action,#canvas-toolbar .ui-action{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;}
+}
+@media (prefers-reduced-motion:reduce){.ui-action{transition:none!important;}}
+@media print {#pwa-hint,#pwa-install-btn{display:none!important;}}
