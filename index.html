@@ -1,0 +1,3633 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مصمم المخططات الانسيابية - Flowchart Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Cairo', 'Inter', system-ui, sans-serif;
+        }
+
+        /* Grid Background matching textbook style */
+        .grid-bg {
+            background-color: #e8e6df;
+            background-size: 32px 32px;
+            background-image:
+              linear-gradient(to right, #d6d3cb 1px, transparent 1px),
+              linear-gradient(to bottom, #d6d3cb 1px, transparent 1px);
+        }
+
+        /* Node Core Styles */
+        .node-base {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: grab;
+            user-select: none;
+            transition: box-shadow 0.2s, transform 0.1s;
+            color: #1e293b;
+            font-weight: 700;
+            padding: 8px 12px;
+            box-sizing: border-box;
+            word-wrap: break-word;
+            font-size: 14px;
+            pointer-events: auto;
+            z-index: 2;
+        }
+
+        .node-base:active {
+            cursor: grabbing;
+        }
+
+        .node-selected {
+            filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.85));
+            z-index: 10;
+        }
+
+        /* Connecting visual cue */
+        .node-connecting-start {
+            filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.95));
+        }
+
+        /* 1. Start / End Shape (Pill / Stadium) */
+        .shape-start {
+            border-radius: 9999px;
+            border: 2px solid #57534e;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.08);
+        }
+
+        /* 2. Input / Output Shape (Parallelogram) */
+        .shape-io {
+            background-color: transparent !important;
+        }
+        .shape-io .io-bg {
+            position: absolute;
+            inset: 0;
+            transform: skewX(-20deg);
+            border: 2px solid #57534e;
+            z-index: -1;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.08);
+        }
+
+        /* 3. Process Shape (Rectangle) */
+        .shape-process {
+            border-radius: 2px;
+            border: 2px solid #57534e;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.08);
+        }
+        /* 4. Decision Node (True Rhombus / Diamond matching textbook) */
+        .shape-decision {
+            background-color: transparent !important;
+        }
+        .shape-decision svg.decision-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: visible;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.08));
+        }
+
+        /* Edge (Lines) Styles */
+        svg {
+            pointer-events: none;
+        }
+        
+        .edge-path {
+            stroke: #57534e;
+            stroke-width: 2.5;
+            fill: none;
+            pointer-events: stroke;
+            cursor: pointer;
+            transition: stroke 0.2s, stroke-width 0.2s;
+        }
+
+        .edge-path:hover {
+            stroke: #e11d48;
+            stroke-width: 4;
+        }
+
+        .edge-selected {
+            stroke: #2563eb;
+            stroke-width: 4;
+        }
+        
+        .connect-mode-cursor {
+            cursor: crosshair !important;
+        }
+        .connect-mode-cursor .node-base {
+            cursor: crosshair !important;
+        }
+
+        /* Resize Handle */
+        .resize-handle {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            background: #2563eb;
+            border: 2px solid #ffffff;
+            border-radius: 3px;
+            bottom: -6px;
+            left: -6px;
+            cursor: nwse-resize;
+            z-index: 30;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* Quick Action Floating Button on Selected Node */
+        .node-note-btn {
+            position: absolute;
+            top: -32px;
+            right: 0;
+            background: #0284c7;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 35;
+            border: 1.5px solid #ffffff;
+            transition: transform 0.1s, background-color 0.15s;
+        }
+        .node-note-btn:hover {
+            background: #0369a1;
+            transform: scale(1.05);
+        }
+
+        /* Callout Note Card (Textbook Style) */
+        .note-card {
+            position: absolute;
+            background: #ffffff;
+            border: 2.5px solid #0284c7;
+            border-radius: 14px;
+            padding: 6px 12px;
+            color: #0284c7;
+            font-weight: 700;
+            font-size: 13px;
+            text-align: center;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+            pointer-events: auto;
+            z-index: 5;
+            min-width: 110px;
+            max-width: 180px;
+            line-height: 1.35;
+        }
+        .note-card:active {
+            cursor: grabbing;
+        }
+
+        /* Free Text Element on Canvas */
+        .free-text-item {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1.5px dashed transparent;
+            pointer-events: auto;
+            z-index: 6;
+            font-weight: 700;
+            white-space: pre-wrap;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .free-text-item:hover {
+            border-color: #94a3b8;
+            background-color: rgba(255, 255, 255, 0.45);
+        }
+        .free-text-selected {
+            border: 2px dashed #2563eb !important;
+            background-color: rgba(255, 255, 255, 0.8) !important;
+        }
+
+        /* Viewport Transform Container */
+        #viewport-world {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform-origin: 0 0;
+            pointer-events: none;
+        }
+
+        .pan-mode-cursor {
+            cursor: grab !important;
+        }
+        .pan-mode-cursor:active {
+            cursor: grabbing !important;
+        }
+        .pen-mode-cursor {
+            cursor: crosshair !important;
+        }
+
+        .project-action-btn {
+            background: #334155;
+            border: 1px solid #475569;
+            padding: 5px 10px;
+            border-radius: 7px;
+            font: 700 12px 'Cairo', sans-serif;
+            white-space: nowrap;
+            transition: background-color .15s;
+        }
+        .project-action-btn:hover:not(:disabled) { background: #475569; }
+        .project-action-btn:disabled { opacity: .4; cursor: not-allowed; }
+        .project-action-btn:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+
+
+
+        /* IDLE Classic inspired Python code editor. Line numbers are optional in IDLE,
+           shown here because this project explicitly requests them. */
+        .python-idle-window {
+            font-family: Arial, 'Cairo', sans-serif;
+            background: #f7f7f7;
+        }
+        .python-idle-titlebar {
+            background: #eeeeee;
+            border-bottom: 1px solid #c7c7c7;
+        }
+        .python-idle-toolbar {
+            background: #f6f6f6;
+            border-bottom: 1px solid #ddd;
+        }
+        .python-editor-shell {
+            display: grid;
+            direction: ltr;
+            grid-template-columns: 54px minmax(0,1fr);
+            border: 1px solid #a5a5a5;
+            border-radius: 2px;
+            overflow: hidden;
+            background: #fff;
+            height: min(58vh, 525px);
+            min-height: 300px;
+        }
+        .python-editor-lines {
+            background: #f2f2f2;
+            color: #777;
+            font: 14px/1.6 Consolas, 'SFMono-Regular', Menlo, Monaco, 'Liberation Mono', monospace;
+            padding: 12px 12px 12px 6px;
+            text-align: right;
+            user-select: none;
+            overflow: hidden;
+            border-right: 1px solid #d7d7d7;
+            white-space: pre;
+            direction: ltr;
+        }
+        .python-editor-stack {
+            position: relative;
+            overflow: hidden;
+            background: #fff;
+        }
+        .python-editor-highlight,
+        .python-editor-input {
+            position: absolute;
+            inset: 0;
+            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 12px 14px;
+            border: 0;
+            outline: none;
+            font: 14px/1.6 Consolas, 'SFMono-Regular', Menlo, Monaco, 'Liberation Mono', monospace;
+            font-weight: 400;
+            letter-spacing: 0;
+            white-space: pre;
+            overflow: auto;
+            tab-size: 4;
+            text-align: left;
+            direction: ltr;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+        .python-editor-highlight {
+            color: #000;
+            pointer-events: none;
+            scrollbar-width: none;
+        }
+        .python-editor-highlight::-webkit-scrollbar { display: none; }
+        .python-editor-input {
+            resize: none;
+            background: transparent;
+            color: transparent;
+            -webkit-text-fill-color: transparent;
+            caret-color: #000;
+            z-index: 2;
+            scrollbar-color: #c1c1c1 #fff;
+        }
+        .python-editor-input::selection { background: rgba(80, 150, 245, .30); }
+        .python-editor-input::placeholder { color: transparent; -webkit-text-fill-color: transparent; }
+        /* IDLE's classic theme conventions */
+        .tok-keyword { color: #ff7700; font-weight: 400; }
+        .tok-string { color: #00aa00; }
+        .tok-comment { color: #dd0000; }
+        .tok-builtin { color: #900090; }
+        .tok-defname { color: #0000ff; }
+        .tok-number, .tok-operator, .tok-func { color: #000; }
+        .python-editor-placeholder { color: #999; }
+        .python-idle-statusbar {
+            background: #eeeeee;
+            color: #444;
+            border: 1px solid #d0d0d0;
+            border-top: 0;
+            font: 12px/1.5 Consolas, 'Liberation Mono', monospace;
+            padding: 5px 12px;
+            direction: ltr;
+            text-align: right;
+        }
+
+
+        .hidden { display: none !important; }
+        /* Non-destructive flow validation diagnostics */
+        .flow-check-modal { background: rgba(15,23,42,.68); }
+        .flow-check-card { max-height: min(88vh, 900px); overflow: hidden; }
+        .flow-check-list { overflow-y: auto; min-height: 80px; max-height: 53vh; }
+        .flow-check-item { display: flex; text-align: right; gap: 12px; align-items: start;
+            width: 100%; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 11px 12px; background: #fff; }
+        .flow-check-item[data-has-target="true"] { cursor: pointer; }
+        .flow-check-item[data-has-target="true"]:hover,
+        .flow-check-item[data-has-target="true"]:focus-visible { background: #eff6ff; border-color: #93c5fd; }
+        .flow-check-error { color: #b91c1c; }
+        .flow-check-warning { color: #92400e; }
+        .flow-check-good { color: #15803d; }
+        @media print { #flow-check-modal { display: none !important; } }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: #ffffff !important;
+                overflow: visible !important;
+            }
+            #sidebar-panel, #workspaces-bar, #project-controls, #floating-hint, #canvas-toolbar, .resize-handle, .node-note-btn {
+                display: none !important;
+            }
+            #main-area, #canvas-container {
+                width: 100% !important;
+                height: 100vh !important;
+                overflow: visible !important;
+            }
+            #print-header {
+                display: block !important;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="./responsive.css">
+    <script src="./responsive.js" defer></script>
+</head>
+<body class="flex bg-slate-50 text-slate-800">
+
+    <!-- Sidebar UI -->
+    <div id="sidebar-panel" class="w-80 bg-slate-900 text-slate-200 flex flex-col shadow-2xl z-20 flex-shrink-0">
+        <div class="p-4 border-b border-slate-700 bg-pink-600 text-white">
+            <h1 class="text-lg font-bold tracking-tight">المخطط الانسيابي (Flowchart)</h1>
+            <p class="text-[11px] text-pink-100 mt-0.5">تمثيل الخوارزمية خطوة بخطوة وتصديرها إلى Python</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+            <!-- Add Nodes matching the 4 textbook shapes -->
+            <section>
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">إضافة الأشكال (نوع الشكل)</h2>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <!-- البداية / النهاية -->
+                    <button onclick="addNode('start')" class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition group" title="الإشارة إلى بداية ونهاية المقطع البرمجي">
+                        <div class="w-16 h-6 bg-[#d1ccd6] border border-slate-600 rounded-full mb-2 flex items-center justify-center text-[10px] text-slate-900 font-bold">البداية / النهاية</div>
+                        <span class="text-xs font-semibold">بداية / نهاية</span>
+                    </button>
+
+                    <!-- الإدخال / الإخراج -->
+                    <button onclick="addNode('io')" class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition group" title="استقبال وعرض البيانات (إدخال وإخراج)">
+                        <div class="w-16 h-6 bg-[#c8e0a8] border border-slate-600 transform -skew-x-12 mb-2 flex items-center justify-center text-[9px] text-slate-900 font-bold">إدخال / إخراج</div>
+                        <span class="text-xs font-semibold">إدخال / إخراج</span>
+                    </button>
+
+                    <!-- العمليات -->
+                    <button onclick="addNode('process')" class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition group" title="تنفيذ عملية رياضية أو برمجية">
+                        <div class="w-16 h-6 bg-[#f5cfa6] border border-slate-600 mb-2 flex items-center justify-center text-[10px] text-slate-900 font-bold">العمليات</div>
+                        <span class="text-xs font-semibold">عملية (Process)</span>
+                    </button>
+
+                    <!-- اتخاذ قرار -->
+                    <button onclick="addNode('decision')" class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition group" title="اتخاذ قرارات (نعم أو لا) أو (T / F)">
+                        <svg class="w-16 h-9 mb-1" viewBox="0 0 64 36">
+                            <polygon points="32,2 62,18 32,34 2,18" fill="#b3cde8" stroke="#475569" stroke-width="2"/>
+                            <text x="32" y="21" text-anchor="middle" fill="#0f172a" font-size="8.5" font-weight="bold">اتخاذ قرار</text>
+                        </svg>
+                        <span class="text-xs font-semibold">اتخاذ قرار</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Tools -->
+            <section>
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">أدوات التحكم والرسم والربط</h2>
+                <div class="flex flex-col gap-2">
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button id="btn-mode-select" onclick="setMode('select')" class="px-2.5 py-2 bg-pink-600 text-white rounded-lg border border-pink-500 transition text-xs font-bold flex items-center justify-center gap-1">
+                            <span>↖️ تحديد وتحريك</span>
+                        </button>
+                        <button id="btn-mode-pan" onclick="setMode('pan')" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs font-bold flex items-center justify-center gap-1">
+                            <span>✋ تحريك الكل</span>
+                        </button>
+                        <button id="btn-mode-pen" onclick="setMode('pen')" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs font-bold flex items-center justify-center gap-1">
+                            <span>✏️ أداة القلم</span>
+                        </button>
+                        <button onclick="addFreeText()" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg border border-slate-700 transition text-xs font-bold flex items-center justify-center gap-1">
+                            <span>🔤 + إضافة نص</span>
+                        </button>
+                    </div>
+
+                    <!-- Pen Settings Panel (Shown when Pen Mode is active) -->
+                    <div id="pen-settings-box" class="hidden bg-slate-800/90 p-2.5 rounded-lg border border-amber-500/50 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-amber-300">إعدادات القلم الحر:</span>
+                            <div class="flex gap-1">
+                                <button onclick="undoLastDrawing()" class="text-[10px] bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-slate-200">تراجع ↩</button>
+                                <button onclick="clearAllDrawings()" class="text-[10px] bg-rose-900/70 hover:bg-rose-800 px-2 py-0.5 rounded text-rose-200">مسح الرسم</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-[11px] text-slate-400">اللون:</label>
+                            <input type="color" id="pen-color" value="#e11d48" class="w-8 h-6 bg-slate-900 rounded cursor-pointer border border-slate-600">
+                            <label class="text-[11px] text-slate-400 mr-2">السماكة:</label>
+                            <input type="range" id="pen-width" min="2" max="14" value="4" class="w-24 accent-pink-500">
+                        </div>
+                    </div>
+
+                    <button id="btn-connect" onclick="toggleConnectMode()" class="w-full text-right px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition flex items-center justify-between">
+                        <span class="text-xs font-bold">🔗 رسم سهم توصيل (Line)</span>
+                        <span class="text-[11px] bg-slate-700 px-2 py-0.5 rounded text-slate-300" id="connect-status">متوقف</span>
+                    </button>
+                    <button onclick="selectAllElements()" class="w-full text-right px-4 py-2 bg-indigo-900/50 hover:bg-indigo-800/70 text-indigo-200 rounded-lg border border-indigo-700/60 transition flex items-center justify-between">
+                        <span class="text-xs font-bold">📦 تحديد كامل الرسمة وتحريكها</span>
+                        <span class="text-[10px] bg-indigo-700 px-2 py-0.5 rounded text-white" id="select-all-badge">تحديد الكل</span>
+                    </button>
+                    <button onclick="quickAddNoteToSelected()" class="w-full text-right px-4 py-2 bg-sky-900/50 hover:bg-sky-800/70 text-sky-200 rounded-lg border border-sky-700/60 transition flex items-center justify-between">
+                        <span class="text-xs font-bold">💬 إضافة / تعديل ملاحظة للشكل</span>
+                        <span class="text-[10px] bg-sky-700 px-2 py-0.5 rounded text-white">سريع</span>
+                    </button>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="resetToTextbookExample()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg border border-slate-700 transition text-center">
+                            استعادة مثال الكتاب
+                        </button>
+                        <button onclick="deleteSelected()" class="px-3 py-2 bg-rose-900/40 hover:bg-rose-900/60 text-rose-300 text-xs rounded-lg border border-rose-900/50 transition text-center">
+                            حذف المحدد (Delete)
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Properties (Dynamic) - Moved up for immediate visibility -->
+            <section id="properties-panel" class="opacity-50 pointer-events-none transition-opacity">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">خصائص العنصر المحدد</h2>
+                <div class="space-y-3 bg-slate-800 p-3.5 rounded-lg border border-slate-700">
+                    <!-- Change Shape Type Selector -->
+                    <div id="prop-shape-type-container">
+                        <label class="block text-xs text-slate-400 mb-1">نوع الشكل (تغيير الشكل مع الاحتفاظ بالمحتوى)</label>
+                        <select id="prop-shape-type" onchange="changeSelectedNodeType(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-pink-500 transition font-bold">
+                            <option value="start">البداية / النهاية (Start/End)</option>
+                            <option value="io">الإدخال / الإخراج (Input/Output)</option>
+                            <option value="process">العمليات (Process)</option>
+                            <option value="decision">اتخاذ قرار (Decision)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1" id="prop-label-title">النص داخل الشكل</label>
+                        <input type="text" id="prop-label" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white focus:outline-none focus:border-pink-500 transition">
+                    </div>
+
+                    <!-- Node Note (Callout Box) placed right under Label -->
+                    <div id="prop-note-container" class="bg-sky-950/60 p-2.5 rounded-lg border border-sky-800/80">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs text-sky-300 font-bold">💬 الملاحظة التوضيحية (تظهر بجانب الشكل)</label>
+                            <button onclick="clearNodeNote()" class="text-[10px] text-rose-400 hover:underline">حذف الملاحظة</button>
+                        </div>
+                        <textarea id="prop-note" rows="2" placeholder="اكتب الملاحظة هنا لتظهر في مربع شرح متصل بالشكل..." class="w-full bg-slate-900 border border-sky-700/70 rounded px-2.5 py-1.5 text-xs text-sky-100 focus:outline-none focus:border-sky-400 transition resize-none"></textarea>
+                    </div>
+
+                    <!-- Quick Decision Edge Presets (T, F, نعم, لا) -->
+                    <div id="edge-quick-labels" class="hidden">
+                        <label class="block text-xs text-slate-400 mb-1.5">تسمية سريعة لقرار التفرع:</label>
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button onclick="setQuickEdgeLabel('T')" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 rounded">T</button>
+                            <button onclick="setQuickEdgeLabel('F')" class="bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold py-1.5 rounded">F</button>
+                            <button onclick="setQuickEdgeLabel('نعم')" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 rounded">نعم</button>
+                            <button onclick="setQuickEdgeLabel('لا')" class="bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold py-1.5 rounded">لا</button>
+                        </div>
+                    </div>
+
+                    <!-- Node Size Controls -->
+                    <div id="prop-size-container" class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">العرض (Width)</label>
+                            <input type="number" id="prop-width" min="70" max="450" step="5" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">الارتفاع (Height)</label>
+                            <input type="number" id="prop-height" min="36" max="300" step="4" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-pink-500">
+                        </div>
+                    </div>
+
+                    <!-- Font Size Control for Free Text -->
+                    <div id="prop-fontsize-container" class="hidden">
+                        <label class="block text-xs text-slate-400 mb-1">حجم الخط (Font Size)</label>
+                        <input type="number" id="prop-fontsize" min="12" max="60" step="2" value="18" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-pink-500">
+                    </div>
+
+                    <div id="prop-color-container">
+                        <label class="block text-xs text-slate-400 mb-1">اللون</label>
+                        <div class="flex items-center gap-2">
+                            <input type="color" id="prop-color" class="h-7 w-full bg-slate-900 rounded cursor-pointer border border-slate-700">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Python to Flowchart Converter Section -->
+            <section class="bg-slate-800/80 p-3.5 rounded-lg border border-slate-700 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                    <h2 class="text-xs font-bold text-amber-400 uppercase tracking-wider">تحويل كود بايثون لمخطط</h2>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openPythonImportModal()" class="text-[11px] bg-sky-700 hover:bg-sky-600 text-white px-2.5 py-1 rounded-md font-bold">فتح محرر بايثون</button>
+                        <button onclick="loadSamplePythonCode()" class="text-[11px] text-sky-400 hover:text-sky-300 underline">مثال جاهز</button>
+                    </div>
+                </div>
+                <textarea id="python-input-area" dir="ltr" rows="5" placeholder="# الصق كود بايثون هنا...&#10;x = int(input('Enter number'))&#10;if x >= 50:&#10;    print('ناجح')&#10;else:&#10;    print('راسب')" class="w-full p-2.5 text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded focus:outline-none focus:border-amber-400 text-left resize-y"></textarea>
+                <button id="python-append-btn" onclick="convertPythonToFlowchart('append')" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow transition">
+                    ＋ إضافة مخطط جديد في نفس المنطقة
+                </button>
+                <button id="python-replace-btn" onclick="convertPythonToFlowchart('replace')" class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold text-[11px] rounded-lg border border-slate-600 transition">
+                    استبدال المخططات الحالية بهذا الكود
+                </button>
+                <p class="text-[11px] text-slate-300 leading-5">الإضافة لا تحذف الرسوم الحالية، وتضع الرسم الجديد بجوارها تلقائيًا. لتجميعها في الشاشة اضغط «عرض الكل».</p>
+                <p id="python-conversion-status" class="text-[11px] leading-5 text-amber-300" role="status" aria-live="polite"></p>
+            </section>
+        </div>
+
+        <!-- Export & Print -->
+        <div class="p-4 border-t border-slate-700 bg-slate-800/50">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">التصدير والطباعة</h2>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="exportSVG()" class="text-center px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg font-bold shadow-sm transition">
+                    تصدير المخطط (SVG)
+                </button>
+                <button onclick="printFlowchart()" class="text-center px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded-lg font-bold shadow-sm transition flex items-center justify-center gap-1">
+                    <span>🖨️ طباعة المخطط</span>
+                </button>
+                <button onclick="showPythonModal()" class="col-span-2 w-full text-center px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs rounded-lg font-bold shadow-sm transition">
+                    توليد كود بايثون (Python Code)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Column (Workspaces Bar + Canvas) -->
+    <div id="main-area" class="flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Multi-Workspace Tabs Bar -->
+        <div id="workspaces-bar" class="bg-slate-800 border-b border-slate-700 px-3 py-2 flex items-center justify-between gap-2 z-20 flex-shrink-0">
+            <div class="flex items-center gap-1.5 overflow-x-auto py-0.5" id="workspaces-tabs">
+                <!-- Dynamic Workspace Tabs -->
+            </div>
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+                <button onclick="addNewWorkspace()" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold rounded-lg shadow transition flex items-center gap-1" title="إضافة منطقة عمل جديدة">
+                    <span>+ منطقة جديدة</span>
+                </button>
+                <button onclick="startRenameWorkspace()" class="px-2.5 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded-lg transition" title="إعادة تسمية المنطقة الحالية">
+                    ✎ تسمية المنطقة
+                </button>
+                <button onclick="deleteCurrentWorkspace()" class="px-2.5 py-1.5 bg-slate-700 hover:bg-rose-700 text-slate-300 hover:text-white text-xs rounded-lg transition" title="حذف المنطقة الحالية">
+                    🗑️
+                </button>
+            </div>
+        </div>
+
+        <!-- Project controls: local autosave, undo/redo and portable JSON backup -->
+        <div id="project-controls" class="bg-slate-800/95 text-white px-3 py-2 border-b border-slate-700 flex items-center gap-2 flex-wrap z-20 flex-shrink-0" role="toolbar" aria-label="إدارة المشروع">
+            <button id="btn-check-flow" onclick="openFlowValidation()" class="project-action-btn" title="فحص الأشكال والأسهم ومسارات القرارات في المنطقة الحالية">✓ فحص المخطط</button>
+            <button id="btn-undo" onclick="undoAction()" disabled class="project-action-btn" title="تراجع (Ctrl/Cmd+Z)" aria-label="تراجع">↶ تراجع</button>
+            <button id="btn-redo" onclick="redoAction()" disabled class="project-action-btn" title="إعادة (Ctrl/Cmd+Shift+Z)" aria-label="إعادة">↷ إعادة</button>
+            <span class="h-5 border-r border-slate-600" aria-hidden="true"></span>
+            <button onclick="downloadProject()" class="project-action-btn" title="تحميل نسخة احتياطية قابلة لإعادة التحرير">⬇ حفظ مشروع</button>
+            <button onclick="document.getElementById('project-file-input').click()" class="project-action-btn" title="استيراد مشروع بصيغة JSON">⬆ فتح مشروع</button>
+            <input id="project-file-input" type="file" accept="application/json,.json" class="hidden" onchange="importProjectFile(this)" aria-label="اختيار ملف مشروع JSON">
+            <span id="project-save-status" class="text-[11px] text-slate-300 mr-auto" role="status" aria-live="polite">الحفظ التلقائي محليًا</span>
+        </div>
+
+        <!-- Inline Rename Bar (Hidden by default) -->
+        <div id="workspace-rename-bar" class="hidden bg-slate-700 px-4 py-2 flex items-center gap-2 border-b border-slate-600 z-20">
+            <span class="text-xs text-slate-200 font-bold">اسم المنطقة:</span>
+            <input type="text" id="workspace-name-input" class="bg-slate-900 text-white text-xs px-3 py-1.5 rounded border border-slate-500 focus:outline-none focus:border-pink-400 w-64">
+            <button onclick="confirmRenameWorkspace()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded">حفظ</button>
+            <button onclick="cancelRenameWorkspace()" class="bg-slate-600 hover:bg-slate-500 text-slate-200 text-xs px-3 py-1.5 rounded">إلغاء</button>
+        </div>
+
+        <!-- Workspace Canvas -->
+        <div id="canvas-container" class="flex-1 relative grid-bg overflow-hidden">
+            <!-- Print Only Header -->
+            <div id="print-header" class="hidden p-4 text-center border-b border-slate-300 bg-white/90">
+                <h2 id="print-workspace-title" class="text-xl font-bold text-slate-800">المخطط الانسيابي</h2>
+            </div>
+
+            <!-- Floating Legend Banner -->
+            <div id="floating-hint" class="absolute top-3 right-3 bg-white/90 backdrop-blur px-3 py-2 rounded-lg shadow border border-slate-300 text-xs text-slate-700 z-10 pointer-events-none">
+                💡 <b>تلميح:</b> يمكنك التكبير والتصغير بعجلة الفأرة، أو استخدام أداة <b>✋ تحريك الكل</b> أو <b>✏️ القلم</b> أو <b>🔤 نص</b> من القائمة أو الشريط السفلي.
+            </div>
+
+            <!-- Floating Bottom Zoom & Quick Tools Bar -->
+            <div id="canvas-toolbar" class="absolute bottom-4 left-4 bg-slate-900/95 text-white px-3 py-2 rounded-xl shadow-xl border border-slate-700 flex items-center gap-2 z-20">
+                <button onclick="zoomCanvas(0.15)" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-sm flex items-center justify-center" title="تكبير (Zoom In)">+</button>
+                <span id="zoom-level-label" class="text-xs font-mono font-bold min-w-[46px] text-center text-sky-400">100%</span>
+                <button onclick="zoomCanvas(-0.15)" class="w-7 h-7 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-sm flex items-center justify-center" title="تصغير (Zoom Out)">−</button>
+                <button onclick="resetZoomAndPan()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-[11px] text-slate-300" title="إعادة ضبط الرؤية">ضبط الرؤية</button>
+                <button id="zoom-fit-all-btn" onclick="fitAllWorkspaceContent()" class="px-2 py-1 bg-sky-800 hover:bg-sky-700 rounded-lg text-[11px] text-sky-100 font-bold" title="إظهار جميع المخططات في منطقة العمل">عرض الكل</button>
+                <div class="h-4 w-[1px] bg-slate-700 mx-1"></div>
+                <button onclick="selectAllElements()" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-[11px] font-bold" title="تحديد كامل الرسمة وتحريكها">📦 تحديد الكل</button>
+                <button onclick="setMode('pan')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-[11px]" title="أداة اليد لتحريك اللوحة">✋ يد</button>
+                <button onclick="setMode('pen')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-[11px]" title="أداة القلم للرسم الحر">✏️ قلم</button>
+                <button onclick="addFreeText()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-[11px]" title="إضافة نص حر">🔤 نص</button>
+            </div>
+
+            <!-- Transformable World Container (Zoom + Pan) -->
+            <div id="viewport-world">
+                <svg id="edges-layer" class="absolute inset-0 w-full h-full overflow-visible">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+                            <polygon points="0 0, 8 3.5, 0 7" fill="#57534e" />
+                        </marker>
+                        <marker id="arrowhead-selected" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
+                            <polygon points="0 0, 8 3.5, 0 7" fill="#2563eb" />
+                        </marker>
+                        <marker id="note-dot" markerWidth="8" markerHeight="8" refX="4" refY="4">
+                            <circle cx="4" cy="4" r="3" fill="#0284c7" />
+                        </marker>
+                    </defs>
+                    <g id="edges-group"></g>
+                    <g id="notes-lines-group"></g>
+                    <g id="drawings-group"></g>
+                </svg>
+                <div id="nodes-layer" class="absolute inset-0 w-full h-full pointer-events-none">
+                    <!-- Nodes, Callout Notes, and Free Texts dynamically injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Python Export Modal -->
+    <div id="code-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-[800px] max-w-[90vw] flex flex-col gap-4 relative">
+            <h2 class="text-xl font-bold text-slate-800 border-b pb-2">كود بايثون للمخطط الانسيابي (Python Graphviz)</h2>
+            <button onclick="document.getElementById('code-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <p class="text-sm text-slate-600">
+                يمكنك تشغيل هذا الكود في بايثون لإنشاء المخطط الانسيابي برمجياً:<br>
+                المكتبة المطلوبة: <code dir="ltr" class="bg-slate-100 px-2 py-0.5 rounded text-rose-600 font-mono">pip install graphviz</code>
+            </p>
+            <textarea id="python-code-area" dir="ltr" class="w-full h-72 p-4 font-mono text-sm bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg focus:outline-none text-left" readonly></textarea>
+            <div class="flex justify-end gap-3 mt-2">
+                <button onclick="copyPythonCode(event)" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium shadow-sm transition">
+                    نسخ الكود (Copy Code)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Python Input Modal -->
+    <div id="python-import-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 transition-opacity">
+        <div class="python-idle-window rounded-lg shadow-2xl p-4 w-[980px] max-w-[96vw] flex flex-col gap-3 relative max-h-[94vh] overflow-hidden">
+            <div class="python-idle-titlebar flex items-start justify-between gap-3 px-3 py-3 rounded-sm">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Python Editor — تحويل كود بايثون إلى مخطط</h2>
+                    <p class="text-xs text-slate-600 mt-1">مظهر Python IDLE الكلاسيكي • خلفية بيضاء • أرقام الأسطر • تلوين الأوامر والكلمات المحجوزة</p>
+                </div>
+                <button onclick="closePythonImportModal()" class="text-slate-400 hover:text-slate-600 transition" aria-label="إغلاق">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="python-idle-toolbar flex flex-wrap items-center gap-2 px-2 py-2">
+                <button onclick="loadSamplePythonCode(true)" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg">مثال شروط</button>
+                <button onclick="loadPythonLoopExample('for')" class="px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white text-xs font-bold rounded-lg">مثال for</button>
+                <button onclick="loadPythonLoopExample('while')" class="px-3 py-2 bg-sky-700 hover:bg-sky-600 text-white text-xs font-bold rounded-lg">مثال while</button>
+                <button onclick="syncPythonEditorFromSidebar()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg">تحميل من المربع الجانبي</button>
+                <button onclick="syncSidebarFromPythonEditor()" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg">نقل إلى المربع الجانبي</button>
+                <button onclick="clearPythonEditor()" class="px-3 py-2 bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold rounded-lg">مسح</button>
+                <span class="text-[11px] text-slate-500 mr-auto">يعرض أرقام الأسطر تلقائيًا، ويمكنك لصق الكود كما هو.</span>
+            </div>
+            <div class="python-editor-shell">
+                <div id="python-editor-lines" class="python-editor-lines">1</div>
+                <div class="python-editor-stack">
+                    <pre id="python-editor-highlight" class="python-editor-highlight" aria-hidden="true"></pre>
+                    <textarea id="python-modal-input" class="python-editor-input" spellcheck="false" wrap="off" placeholder="# الصق كود بايثون هنا
+score = 75
+
+if score >= 90:
+    print("Grade: A")"></textarea>
+                </div>
+            </div>
+            <div class="python-idle-statusbar" id="python-idle-status" aria-live="off">Ln 1, Col 1  |  Python 3  |  UTF-8</div>
+            <p id="python-modal-conversion-status" class="text-xs text-rose-700" role="alert" aria-live="polite"></p>
+            <div class="flex flex-wrap justify-end gap-2 pt-1">
+                <button onclick="convertPythonToFlowchartFromModal('replace')" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg">استبدال المخططات الحالية</button>
+                <button onclick="convertPythonToFlowchartFromModal('append')" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg">إضافة مخطط جديد من هذا الكود</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Diagnostic results, non-destructive and scoped to active workspace -->
+    <div id="flow-check-modal" class="hidden fixed inset-0 z-[80] flow-check-modal flex items-center justify-center p-3" role="dialog" aria-modal="true" aria-labelledby="flow-check-title">
+        <div class="flow-check-card bg-white rounded-xl shadow-2xl w-[760px] max-w-[95vw] flex flex-col p-5 gap-3 text-slate-800">
+            <div class="flex items-start justify-between gap-3 border-b border-slate-200 pb-3">
+                <div>
+                    <h2 id="flow-check-title" class="font-bold text-lg">فحص صحة المخطط</h2>
+                    <p id="flow-check-scope" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="closeFlowValidation()" class="text-slate-500 hover:text-slate-900 text-xl" aria-label="إغلاق الفحص">×</button>
+            </div>
+            <div id="flow-check-summary" class="text-sm font-semibold" aria-live="polite"></div>
+            <p class="text-xs text-slate-500">الفحص بنيوي ولا ينفّذ كود بايثون ولا يثبت صحة الحسابات. الضغط على أي مشكلة يحدد شكلها أو سهمها على اللوحة. لا يُعدّل الرسم تلقائيًا.</p>
+            <div id="flow-check-list" class="flow-check-list flex flex-col gap-2" role="list"></div>
+            <div class="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
+                <button type="button" onclick="rerunFlowValidation()" class="px-4 py-2 bg-sky-700 text-white hover:bg-sky-800 rounded-lg text-sm font-bold">إعادة الفحص</button>
+                <button type="button" onclick="closeFlowValidation()" class="px-4 py-2 bg-slate-700 text-white hover:bg-slate-800 rounded-lg text-sm font-bold">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // Multi-Workspace State Management
+        const workspaces = [];
+        let activeWorkspaceId = null;
+        let workspaceCounter = 1;
+
+        // Active Workspace Pointer
+        const state = {
+            nodes: [],
+            edges: [],
+            texts: [],
+            drawings: [],
+            zoom: 1,
+            panX: 0,
+            panY: 0
+        };
+        let nodeCounter = 1;
+        let edgeCounter = 1;
+        let textCounter = 1;
+
+        let selectedNodeId = null;
+        let selectedEdgeId = null;
+        let selectedTextId = null;
+        let isAllSelected = false;
+        let currentMode = 'select'; // 'select', 'connect', 'pan', 'pen'
+        let connectStartNodeId = null;
+
+        let isDragging = false;
+        let isResizing = false;
+        let isPanning = false;
+        let isDrawingPen = false;
+        let currentPenPath = null;
+        let draggingNoteNodeId = null;
+        let draggingTextId = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let lastMouseWorldX = 0;
+        let lastMouseWorldY = 0;
+        let panStartX = 0;
+        let panStartY = 0;
+        let resizeStartW = 0;
+        let resizeStartH = 0;
+        let resizeStartX = 0;
+        let resizeStartY = 0;
+
+        // DOM Elements
+        const canvasContainer = document.getElementById('canvas-container');
+        const viewportWorld = document.getElementById('viewport-world');
+        const nodesLayer = document.getElementById('nodes-layer');
+        const edgesGroup = document.getElementById('edges-group');
+        const notesLinesGroup = document.getElementById('notes-lines-group');
+        const drawingsGroup = document.getElementById('drawings-group');
+        const propertiesPanel = document.getElementById('properties-panel');
+        const propLabel = document.getElementById('prop-label');
+        const propColor = document.getElementById('prop-color');
+        const propWidth = document.getElementById('prop-width');
+        const propHeight = document.getElementById('prop-height');
+        const propFontSize = document.getElementById('prop-fontsize');
+        const propNote = document.getElementById('prop-note');
+        const edgeQuickLabels = document.getElementById('edge-quick-labels');
+        const workspacesTabs = document.getElementById('workspaces-tabs');
+
+        // Colors matching the uploaded curriculum image
+        const COLORS = {
+            start: '#d1ccd6',    // البداية / النهاية
+            io: '#c8e0a8',       // الإدخال / الإخراج
+            process: '#f5cfa6',  // العمليات
+            decision: '#b3cde8'  // اتخاذ قرار
+        };
+
+        // Local-first project persistence and complete, bounded undo/redo history.
+        const PROJECT_STORAGE_KEY = 'flowchart-builder-project-v2';
+        const HISTORY_LIMIT = 60;
+        const projectHistory = {
+            baseline: null, undo: [], redo: [], timer: null, saveTimer: null,
+            applying: false, storageAvailable: true
+        };
+
+        function snapshotProject() {
+            saveStateToActiveWorkspace();
+            return JSON.stringify({
+                version: 2, activeWorkspaceId, workspaceCounter,
+                nodeCounter, edgeCounter, textCounter, workspaces
+            });
+        }
+
+        function saveStatus(message, failed = false) {
+            const status = document.getElementById('project-save-status');
+            if (status) {
+                status.textContent = message;
+                status.className = `text-[11px] mr-auto ${failed ? 'text-rose-300' : 'text-slate-300'}`;
+            }
+        }
+
+        function persistProject() {
+            if (projectHistory.applying || !workspaces.length) return;
+            clearTimeout(projectHistory.saveTimer);
+            projectHistory.saveTimer = null;
+            try {
+                localStorage.setItem(PROJECT_STORAGE_KEY, snapshotProject());
+                projectHistory.storageAvailable = true;
+                saveStatus('✓ محفوظ محليًا تلقائيًا');
+            } catch (err) {
+                projectHistory.storageAvailable = false;
+                saveStatus('تعذر الحفظ المحلي؛ استخدم «حفظ مشروع» للاحتفاظ بعملك', true);
+            }
+        }
+
+        function queueProjectSave() {
+            if (projectHistory.applying || projectHistory.baseline === null) return;
+            clearTimeout(projectHistory.saveTimer);
+            projectHistory.saveTimer = setTimeout(persistProject, 300);
+            saveStatus('جارٍ حفظ التعديلات…');
+        }
+
+        function refreshHistoryButtons() {
+            const undo = document.getElementById('btn-undo');
+            const redo = document.getElementById('btn-redo');
+            if (undo) undo.disabled = projectHistory.undo.length === 0 && snapshotProject() === projectHistory.baseline;
+            if (redo) redo.disabled = projectHistory.redo.length === 0;
+        }
+
+        // Debouncing groups keyboard edits and a continuous drag into one undo step.
+        function trackProjectChange() {
+            if (projectHistory.applying || projectHistory.baseline === null) return;
+            const current = snapshotProject();
+            if (current === projectHistory.baseline) return;
+            queueProjectSave();
+            clearTimeout(projectHistory.timer);
+            projectHistory.timer = setTimeout(commitProjectChange, 700);
+            refreshHistoryButtons();
+        }
+
+        function commitProjectChange() {
+            clearTimeout(projectHistory.timer);
+            projectHistory.timer = null;
+            if (projectHistory.applying || projectHistory.baseline === null) return;
+            const current = snapshotProject();
+            if (current !== projectHistory.baseline) {
+                projectHistory.undo.push(projectHistory.baseline);
+                if (projectHistory.undo.length > HISTORY_LIMIT) projectHistory.undo.shift();
+                projectHistory.baseline = current;
+                projectHistory.redo.length = 0;
+                queueProjectSave();
+            }
+            refreshHistoryButtons();
+        }
+
+        function applyProjectSnapshot(serialized) {
+            const project = JSON.parse(serialized);
+            projectHistory.applying = true;
+            clearTimeout(projectHistory.timer);
+            clearTimeout(projectHistory.saveTimer);
+            projectHistory.timer = null;
+            projectHistory.saveTimer = null;
+            try {
+                workspaces.splice(0, workspaces.length, ...project.workspaces);
+                activeWorkspaceId = project.activeWorkspaceId;
+                workspaceCounter = project.workspaceCounter;
+                nodeCounter = project.nodeCounter;
+                edgeCounter = project.edgeCounter;
+                textCounter = project.textCounter;
+                selectedNodeId = selectedEdgeId = selectedTextId = null;
+                isAllSelected = false;
+                currentMode = 'select';
+                connectStartNodeId = null;
+                isDragging = isResizing = isPanning = isDrawingPen = false;
+                draggingNoteNodeId = draggingTextId = null;
+                currentPenPath = null;
+                syncStateFromActiveWorkspace();
+                renderWorkspaceTabs();
+                updateSelectAllBadge();
+                setMode('select'); // Restore toolbar state after returning from pan/pen/connect.
+                updatePropertiesPanel();
+                render();
+            } finally {
+                projectHistory.applying = false;
+            }
+        }
+
+        function undoAction() {
+            commitProjectChange();
+            if (!projectHistory.undo.length) return;
+            const current = snapshotProject();
+            const previous = projectHistory.undo.pop();
+            projectHistory.redo.push(current);
+            applyProjectSnapshot(previous);
+            projectHistory.baseline = snapshotProject();
+            refreshHistoryButtons();
+            persistProject();
+        }
+
+        function redoAction() {
+            commitProjectChange();
+            if (!projectHistory.redo.length) return;
+            const current = snapshotProject();
+            const next = projectHistory.redo.pop();
+            projectHistory.undo.push(current);
+            applyProjectSnapshot(next);
+            projectHistory.baseline = snapshotProject();
+            refreshHistoryButtons();
+            persistProject();
+        }
+
+        function validateProject(project) {
+            if (!project || project.version !== 2 || !Array.isArray(project.workspaces) ||
+                project.workspaces.length < 1 || project.workspaces.length > 100 ||
+                !Number.isSafeInteger(project.workspaceCounter) ||
+                !Number.isSafeInteger(project.nodeCounter) ||
+                !Number.isSafeInteger(project.edgeCounter) ||
+                !Number.isSafeInteger(project.textCounter)) throw new Error('صيغة المشروع غير مدعومة');
+            const ids = new Set();
+            for (const ws of project.workspaces) {
+                if (!ws || typeof ws.id !== 'string' || typeof ws.name !== 'string' ||
+                    ids.has(ws.id) || !Array.isArray(ws.nodes) || !Array.isArray(ws.edges) ||
+                    !Array.isArray(ws.texts) || !Array.isArray(ws.drawings) ||
+                    ws.nodes.length > 1500 || ws.edges.length > 4000 ||
+                    ws.texts.length > 1500 || ws.drawings.length > 1500) {
+                    throw new Error('ملف مشروع تالف أو كبير جدًا');
+                }
+                ids.add(ws.id);
+                const nodeIds = new Set();
+                for (const n of ws.nodes) {
+                    if (!n || typeof n.id !== 'string' || nodeIds.has(n.id) ||
+                        !['start','io','process','decision'].includes(n.type) ||
+                        typeof n.text !== 'string' || n.text.length > 10000 ||
+                        !['x','y','w','h'].every(k => Number.isFinite(n[k])) ||
+                        typeof n.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(n.color)) {
+                        throw new Error('أشكال غير صالحة في ملف المشروع');
+                    }
+                    nodeIds.add(n.id);
+                }
+                const edgeIds = new Set();
+                for (const e of ws.edges) {
+                    if (!e || typeof e.id !== 'string' || edgeIds.has(e.id) || !nodeIds.has(e.from) ||
+                        !nodeIds.has(e.to) || typeof e.label !== 'string' || e.label.length > 10000 ||
+                        (e.routing !== undefined && !['return-right', 'loop-back'].includes(e.routing))) {
+                        throw new Error('أسهم غير صالحة في ملف المشروع');
+                    }
+                    edgeIds.add(e.id);
+                }
+                const textIds = new Set();
+                for (const t of ws.texts) {
+                    if (!t || typeof t.id !== 'string' || textIds.has(t.id) ||
+                        typeof t.text !== 'string' || t.text.length > 10000 ||
+                        !Number.isFinite(t.x) || !Number.isFinite(t.y) ||
+                        !Number.isFinite(t.fontSize) || t.fontSize < 8 || t.fontSize > 100 ||
+                        !/^#[0-9a-fA-F]{6}$/.test(t.color || '#0f172a')) {
+                        throw new Error('نصوص غير صالحة في ملف المشروع');
+                    }
+                    textIds.add(t.id);
+                }
+                for (const d of ws.drawings) {
+                    if (!d || !Array.isArray(d.points) || d.points.length > 10000 ||
+                        !/^#[0-9a-fA-F]{6}$/.test(d.color || '#e11d48') ||
+                        !Number.isFinite(d.width) || d.width < 0 || d.width > 100 ||
+                        d.points.some(pt => !pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y))) {
+                        throw new Error('رسومات غير صالحة في ملف المشروع');
+                    }
+                }
+                if (!Number.isFinite(ws.zoom ?? 1) || (ws.zoom ?? 1) < .2 || (ws.zoom ?? 1) > 4 ||
+                    !Number.isFinite(ws.panX ?? 0) || !Number.isFinite(ws.panY ?? 0)) {
+                    throw new Error('إعدادات عرض غير صالحة في ملف المشروع');
+                }
+            }
+            if (!ids.has(project.activeWorkspaceId)) throw new Error('منطقة العمل المحددة غير موجودة');
+            return project;
+        }
+
+        function restoreLocalProject() {
+            try {
+                const saved = localStorage.getItem(PROJECT_STORAGE_KEY);
+                if (!saved) return false;
+                validateProject(JSON.parse(saved));
+                applyProjectSnapshot(saved);
+                saveStatus('✓ استُعيد آخر مشروع محفوظ');
+                return true;
+            } catch (err) {
+                saveStatus('تعذر استعادة المشروع المحفوظ؛ استخدم «فتح مشروع» إذا كانت لديك نسخة احتياطية', true);
+                return false;
+            }
+        }
+
+        function downloadProject() {
+            commitProjectChange();
+            const data = snapshotProject();
+            const blob = new Blob([data], {type:'application/json;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const name = (workspaces.find(w=>w.id===activeWorkspaceId)?.name || 'flowchart')
+                .replace(/[\\/:*?"<>|]/g, '_').slice(0, 60);
+            a.href = url;
+            a.download = `${name || 'flowchart'}-project.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            saveStatus('✓ تم إنشاء نسخة احتياطية من المشروع');
+        }
+
+        async function importProjectFile(input) {
+            const file = input.files?.[0];
+            input.value = '';
+            if (!file) return;
+            if (file.size > 4 * 1024 * 1024) {
+                alert('الملف كبير جدًا؛ الحد الأقصى 4 ميجابايت.');
+                return;
+            }
+            try {
+                const content = await file.text();
+                validateProject(JSON.parse(content));
+                if (!confirm('سيستبدل هذا الملف المشروع المفتوح. يمكن التراجع عن الاستيراد. هل تريد المتابعة؟')) return;
+                commitProjectChange();
+                applyProjectSnapshot(content);
+                trackProjectChange();
+                commitProjectChange();
+                persistProject();
+                saveStatus('✓ تم فتح المشروع وحفظه محليًا');
+            } catch (err) {
+                alert('تعذر استيراد المشروع: ' + err.message);
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const el = e.target;
+            const editing = el instanceof Element && (el.matches('input,textarea,select') || el.isContentEditable);
+            const cmd = e.ctrlKey || e.metaKey;
+            if (cmd && !e.altKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                downloadProject();
+            } else if (cmd && !e.altKey && e.key.toLowerCase() === 'z' && !editing) {
+                e.preventDefault();
+                if (e.shiftKey) redoAction(); else undoAction();
+            } else if (cmd && !e.altKey && e.key.toLowerCase() === 'y' && !editing) {
+                e.preventDefault();
+                redoAction();
+            } else if (!editing && (e.key === 'Delete' || e.key === 'Backspace') && !cmd) {
+                if (selectedNodeId || selectedEdgeId || selectedTextId || isAllSelected) {
+                    e.preventDefault();
+                    deleteSelected();
+                }
+            }
+        });
+        document.addEventListener('focusout', (e) => {
+            if (e.target?.matches?.('#prop-label,#prop-note,#prop-color,#prop-width,#prop-height,#prop-fontsize')) {
+                commitProjectChange();
+            }
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') { commitProjectChange(); persistProject(); }
+        });
+        window.addEventListener('pagehide', () => { commitProjectChange(); persistProject(); });
+
+        // Helper: Convert client mouse coordinates to world coordinates (accounting for Zoom & Pan)
+        function clientToWorld(clientX, clientY) {
+            const rect = canvasContainer.getBoundingClientRect();
+            return {
+                x: (clientX - rect.left - state.panX) / state.zoom,
+                y: (clientY - rect.top - state.panY) / state.zoom
+            };
+        }
+
+        function applyViewportTransform() {
+            viewportWorld.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+            const zoomSize = Math.round(32 * state.zoom);
+            canvasContainer.style.backgroundSize = `${zoomSize}px ${zoomSize}px`;
+            canvasContainer.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
+            const lbl = document.getElementById('zoom-level-label');
+            if (lbl) lbl.innerText = `${Math.round(state.zoom * 100)}%`;
+            trackProjectChange();
+        }
+
+        function zoomCanvas(delta, centerClientX, centerClientY) {
+            const oldZoom = state.zoom;
+            const newZoom = Math.max(0.35, Math.min(2.5, +(oldZoom + delta).toFixed(2)));
+            if (newZoom === oldZoom) return;
+
+            const rect = canvasContainer.getBoundingClientRect();
+            const cx = centerClientX !== undefined ? (centerClientX - rect.left) : (rect.width / 2);
+            const cy = centerClientY !== undefined ? (centerClientY - rect.top) : (rect.height / 2);
+
+            state.panX = cx - ((cx - state.panX) / oldZoom) * newZoom;
+            state.panY = cy - ((cy - state.panY) / oldZoom) * newZoom;
+            state.zoom = newZoom;
+
+            saveStateToActiveWorkspace();
+            applyViewportTransform();
+        }
+
+        function resetZoomAndPan() {
+            state.zoom = 1;
+            state.panX = 0;
+            state.panY = 0;
+            saveStateToActiveWorkspace();
+            applyViewportTransform();
+        }
+
+        // Initialization with the exact textbook diagram in Workspace 1
+        function init() {
+            const firstWs = {
+                id: 'ws_' + workspaceCounter++,
+                name: 'منطقة 1: مثال الكتاب',
+                nodes: [],
+                edges: [],
+                texts: [],
+                drawings: [],
+                zoom: 1,
+                panX: 0,
+                panY: 0
+            };
+            workspaces.push(firstWs);
+            activeWorkspaceId = firstWs.id;
+            syncStateFromActiveWorkspace();
+            resetToTextbookExample();
+            renderWorkspaceTabs();
+            // Initialization is either the restored project or the original textbook example.
+            // Do not count that initialization as an undo step.
+            if (restoreLocalProject()) {
+                renderWorkspaceTabs();
+            }
+            projectHistory.baseline = snapshotProject();
+            refreshHistoryButtons();
+        }
+
+        function syncStateFromActiveWorkspace() {
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            if (!ws) return;
+            state.nodes = ws.nodes || [];
+            state.edges = ws.edges || [];
+            state.texts = ws.texts || [];
+            state.drawings = ws.drawings || [];
+            state.zoom = ws.zoom || 1;
+            state.panX = ws.panX || 0;
+            state.panY = ws.panY || 0;
+            applyViewportTransform();
+            const printTitle = document.getElementById('print-workspace-title');
+            if (printTitle) printTitle.innerText = ws.name;
+        }
+
+        function saveStateToActiveWorkspace() {
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            if (!ws) return;
+            ws.nodes = state.nodes;
+            ws.edges = state.edges;
+            ws.texts = state.texts;
+            ws.drawings = state.drawings;
+            ws.zoom = state.zoom;
+            ws.panX = state.panX;
+            ws.panY = state.panY;
+        }
+
+        function switchWorkspace(id) {
+            commitProjectChange();
+            saveStateToActiveWorkspace();
+            activeWorkspaceId = id;
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            selectedTextId = null;
+            isAllSelected = false;
+            syncStateFromActiveWorkspace();
+            projectHistory.baseline = snapshotProject();
+            renderWorkspaceTabs();
+            updatePropertiesPanel();
+            render();
+            persistProject();
+        }
+
+        function addNewWorkspace() {
+            saveStateToActiveWorkspace();
+            const newWs = {
+                id: 'ws_' + workspaceCounter++,
+                name: `منطقة عمل ${workspaces.length + 1}`,
+                nodes: [],
+                edges: [],
+                texts: [],
+                drawings: [],
+                zoom: 1,
+                panX: 0,
+                panY: 0
+            };
+            workspaces.push(newWs);
+            activeWorkspaceId = newWs.id;
+            syncStateFromActiveWorkspace();
+
+            const centerX = Math.max(320, Math.floor((canvasContainer.clientWidth || 800) / 2));
+            const nStart = createNode('start', centerX - 70, 60, 'البداية', COLORS.start, 'بداية المخطط');
+            const nEnd = createNode('start', centerX - 70, 220, 'النهاية', COLORS.start, '');
+            state.edges.push({ id: 'e' + edgeCounter++, from: nStart, to: nEnd, label: '' });
+
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            selectedTextId = null;
+            isAllSelected = false;
+            renderWorkspaceTabs();
+            updatePropertiesPanel();
+            render();
+        }
+
+        function startRenameWorkspace() {
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            if (!ws) return;
+            const bar = document.getElementById('workspace-rename-bar');
+            const input = document.getElementById('workspace-name-input');
+            input.value = ws.name;
+            bar.classList.remove('hidden');
+            input.focus();
+            input.select();
+        }
+
+        function confirmRenameWorkspace() {
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            const input = document.getElementById('workspace-name-input');
+            if (ws && input.value.trim()) {
+                ws.name = input.value.trim();
+                syncStateFromActiveWorkspace();
+                renderWorkspaceTabs();
+                trackProjectChange();
+                commitProjectChange();
+            }
+            cancelRenameWorkspace();
+        }
+
+        function cancelRenameWorkspace() {
+            document.getElementById('workspace-rename-bar').classList.add('hidden');
+        }
+
+        function deleteCurrentWorkspace() {
+            if (workspaces.length <= 1) {
+                state.nodes.length = 0;
+                state.edges.length = 0;
+                state.texts.length = 0;
+                state.drawings.length = 0;
+                selectedNodeId = null;
+                selectedEdgeId = null;
+                selectedTextId = null;
+                isAllSelected = false;
+                updatePropertiesPanel();
+                render();
+                return;
+            }
+            const idx = workspaces.findIndex(w => w.id === activeWorkspaceId);
+            workspaces.splice(idx, 1);
+            activeWorkspaceId = workspaces[Math.max(0, idx - 1)].id;
+            syncStateFromActiveWorkspace();
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            selectedTextId = null;
+            isAllSelected = false;
+            renderWorkspaceTabs();
+            updatePropertiesPanel();
+            render();
+        }
+
+        function renderWorkspaceTabs() {
+            workspacesTabs.innerHTML = '';
+            workspaces.forEach(ws => {
+                const btn = document.createElement('button');
+                const isActive = ws.id === activeWorkspaceId;
+                btn.className = `px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                    isActive
+                        ? 'bg-sky-600 text-white shadow'
+                        : 'bg-slate-700/70 text-slate-300 hover:bg-slate-700'
+                }`;
+                btn.innerText = ws.name;
+                btn.onclick = () => switchWorkspace(ws.id);
+                btn.ondblclick = () => startRenameWorkspace();
+                workspacesTabs.appendChild(btn);
+            });
+        }
+
+        function resetToTextbookExample() {
+            state.nodes.length = 0;
+            state.edges.length = 0;
+            state.texts.length = 0;
+            state.drawings.length = 0;
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            selectedTextId = null;
+            isAllSelected = false;
+
+            const centerX = Math.max(320, Math.floor((canvasContainer.clientWidth || 800) / 2));
+
+            // 1. البداية
+            const nStart = createNode('start', centerX - 70, 40, 'البداية', COLORS.start, 'بداية العملية', -195, -5);
+            // 2. المدخلات (إدخال)
+            const nInput = createNode('io', centerX - 80, 130, 'المدخلات', COLORS.io, 'استقبال بيانات', 195, -65);
+            // 3. قرار (نعم / لا)
+            const nDec = createNode('decision', centerX - 85, 225, 'قرار\nلا / نعم', COLORS.decision, 'اتخاذ قرار\nبنعم أو بلا', 195, -35);
+            // 4. عملية (يمين - لا / F)
+            const nProcRight = createNode('process', centerX + 120, 360, 'عملية', COLORS.process, '');
+            // 5. عملية (يسار - نعم / T)
+            const nProcLeft = createNode('process', centerX - 260, 360, 'عملية', COLORS.process, 'تنفيذ مهمة\nمعينة', 190, 5);
+            // 6. المخرجات (إخراج)
+            const nOutput = createNode('io', centerX - 80, 475, 'المخرجات', COLORS.io, 'عرض البيانات\nالمعالجة', 195, 35);
+            // 7. النهاية
+            const nEnd = createNode('start', centerX - 70, 565, 'النهاية', COLORS.start, 'نهاية العملية', -195, -10);
+
+            state.edges.push({ id: 'e' + edgeCounter++, from: nStart, to: nInput, label: '' });
+            state.edges.push({ id: 'e' + edgeCounter++, from: nInput, to: nDec, label: '' });
+            state.edges.push({ id: 'e' + edgeCounter++, from: nDec, to: nProcRight, label: 'لا' });
+            state.edges.push({ id: 'e' + edgeCounter++, from: nDec, to: nProcLeft, label: 'نعم' });
+            state.edges.push({ id: 'e' + edgeCounter++, from: nProcRight, to: nOutput, label: '' });
+            state.edges.push({ id: 'e' + edgeCounter++, from: nProcLeft, to: nOutput, label: '' });
+            state.edges.push({ id: 'e' + edgeCounter++, from: nOutput, to: nEnd, label: '' });
+
+            saveStateToActiveWorkspace();
+            updatePropertiesPanel();
+            render();
+        }
+
+        // Select All Elements & Move Together
+        function selectAllElements() {
+            isAllSelected = !isAllSelected;
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            selectedTextId = null;
+            if (isAllSelected) {
+                setMode('select', true);
+            }
+            updateSelectAllBadge();
+            updatePropertiesPanel();
+            render();
+        }
+
+        function updateSelectAllBadge() {
+            const badge = document.getElementById('select-all-badge');
+            if (!badge) return;
+            if (isAllSelected) {
+                badge.innerText = 'مُحدد (اسحب للتحريك)';
+                badge.classList.replace('bg-indigo-700', 'bg-emerald-600');
+            } else {
+                badge.innerText = 'تحديد الكل';
+                badge.classList.replace('bg-emerald-600', 'bg-indigo-700');
+            }
+        }
+
+        // Add Free Text on Canvas
+        function addFreeText() {
+            const centerWorld = clientToWorld(
+                canvasContainer.getBoundingClientRect().left + canvasContainer.clientWidth / 2,
+                canvasContainer.getBoundingClientRect().top + canvasContainer.clientHeight / 2
+            );
+            const id = 'txt_' + textCounter++;
+            state.texts.push({
+                id,
+                x: centerWorld.x - 60 + (Math.random() * 30 - 15),
+                y: centerWorld.y - 20 + (Math.random() * 30 - 15),
+                text: 'نص توضيحي جديد',
+                color: '#0f172a',
+                fontSize: 18
+            });
+            setMode('select');
+            selectText(id);
+            saveStateToActiveWorkspace();
+            render();
+            propLabel.focus();
+            propLabel.select();
+        }
+
+        function undoLastDrawing() {
+            if (state.drawings.length > 0) {
+                state.drawings.pop();
+                saveStateToActiveWorkspace();
+                renderDrawings();
+            }
+        }
+
+        function clearAllDrawings() {
+            state.drawings.length = 0;
+            saveStateToActiveWorkspace();
+            renderDrawings();
+        }
+
+        // Logic Actions
+        function addNode(type) {
+            const centerWorld = clientToWorld(
+                canvasContainer.getBoundingClientRect().left + canvasContainer.clientWidth / 2,
+                canvasContainer.getBoundingClientRect().top + canvasContainer.clientHeight / 2
+            );
+            const x = centerWorld.x - 70 + (Math.random() * 40 - 20);
+            const y = centerWorld.y - 30 + (Math.random() * 40 - 20);
+            
+            let color = COLORS.process, text = 'عملية';
+            if (type === 'start') { color = COLORS.start; text = 'البداية / النهاية'; }
+            if (type === 'io') { color = COLORS.io; text = 'إدخال / إخراج'; }
+            if (type === 'decision') { color = COLORS.decision; text = 'اتخاذ قرار'; }
+
+            const id = createNode(type, x, y, text, color, '');
+            selectNode(id);
+            setMode('select');
+            render();
+        }
+
+        function createNode(type, x, y, text, color, note = '', noteOffsetX = 185, noteOffsetY = -10) {
+            const id = 'node_' + nodeCounter++;
+            let w = 140, h = 48;
+            if (type === 'io') { w = 160; h = 48; }
+            if (type === 'decision') { w = 170; h = 96; }
+            state.nodes.push({ id, type, x, y, w, h, text, color, note, noteOffsetX, noteOffsetY });
+            saveStateToActiveWorkspace();
+            return id;
+        }
+
+        function deleteSelected() {
+            if (isAllSelected) {
+                state.nodes.length = 0;
+                state.edges.length = 0;
+                state.texts.length = 0;
+                state.drawings.length = 0;
+                isAllSelected = false;
+                updateSelectAllBadge();
+            } else if (selectedNodeId) {
+                const idx = state.nodes.findIndex(n => n.id === selectedNodeId);
+                if (idx !== -1) state.nodes.splice(idx, 1);
+                for (let i = state.edges.length - 1; i >= 0; i--) {
+                    if (state.edges[i].from === selectedNodeId || state.edges[i].to === selectedNodeId) {
+                        state.edges.splice(i, 1);
+                    }
+                }
+                selectedNodeId = null;
+            } else if (selectedEdgeId) {
+                const idx = state.edges.findIndex(e => e.id === selectedEdgeId);
+                if (idx !== -1) state.edges.splice(idx, 1);
+                selectedEdgeId = null;
+            } else if (selectedTextId) {
+                const idx = state.texts.findIndex(t => t.id === selectedTextId);
+                if (idx !== -1) state.texts.splice(idx, 1);
+                selectedTextId = null;
+            }
+            saveStateToActiveWorkspace();
+            updatePropertiesPanel();
+            render();
+        }
+
+        function clearNodeNote() {
+            if (selectedNodeId) {
+                const node = state.nodes.find(n => n.id === selectedNodeId);
+                if (node) {
+                    node.note = '';
+                    propNote.value = '';
+                    render();
+                }
+            }
+        }
+
+        function quickAddNoteToSelected() {
+            if (!selectedNodeId && state.nodes.length > 0) {
+                selectNode(state.nodes[0].id);
+            }
+            if (selectedNodeId) {
+                const node = state.nodes.find(n => n.id === selectedNodeId);
+                if (node) {
+                    if (!node.note || !node.note.trim()) {
+                        node.note = 'اكتب ملاحظتك هنا...';
+                        if (node.noteOffsetX === undefined) {
+                            node.noteOffsetX = 185;
+                            node.noteOffsetY = -10;
+                        }
+                    }
+                    updatePropertiesPanel();
+                    render();
+                    propNote.focus();
+                    propNote.select();
+                }
+            }
+        }
+
+        function printFlowchart() {
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            updatePropertiesPanel();
+            render();
+            setTimeout(() => {
+                window.print();
+            }, 100);
+        }
+
+        function selectNode(id) {
+            selectedNodeId = id;
+            selectedEdgeId = null;
+            selectedTextId = null;
+            isAllSelected = false;
+            updateSelectAllBadge();
+            updatePropertiesPanel();
+        }
+
+        function selectEdge(id) {
+            selectedEdgeId = id;
+            selectedNodeId = null;
+            selectedTextId = null;
+            isAllSelected = false;
+            updateSelectAllBadge();
+            updatePropertiesPanel();
+        }
+
+        function selectText(id) {
+            selectedTextId = id;
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            isAllSelected = false;
+            updateSelectAllBadge();
+            updatePropertiesPanel();
+        }
+
+        function setQuickEdgeLabel(val) {
+            if (selectedEdgeId) {
+                const edge = state.edges.find(e => e.id === selectedEdgeId);
+                if (edge) {
+                    edge.label = val;
+                    propLabel.value = val;
+                    renderEdges();
+                }
+            }
+        }
+
+        function toggleConnectMode() {
+            setMode(currentMode === 'connect' ? 'select' : 'connect');
+            render();
+        }
+
+        function setMode(mode, keepAllSelected = false) {
+            currentMode = mode;
+            connectStartNodeId = null;
+            if (!keepAllSelected) {
+                isAllSelected = false;
+                updateSelectAllBadge();
+            }
+
+            const btnConnect = document.getElementById('btn-connect');
+            const status = document.getElementById('connect-status');
+            const btnSelect = document.getElementById('btn-mode-select');
+            const btnPan = document.getElementById('btn-mode-pan');
+            const btnPen = document.getElementById('btn-mode-pen');
+            const penBox = document.getElementById('pen-settings-box');
+
+            // Reset mode buttons style
+            [btnSelect, btnPan, btnPen].forEach(b => {
+                if (!b) return;
+                b.className = 'px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 transition text-xs font-bold flex items-center justify-center gap-1';
+            });
+
+            canvasContainer.classList.remove('connect-mode-cursor', 'pan-mode-cursor', 'pen-mode-cursor');
+            penBox.classList.add('hidden');
+
+            if (mode === 'connect') {
+                btnConnect.classList.add('ring-2', 'ring-pink-500');
+                status.innerText = 'نشط (اختر شكلين)';
+                status.classList.replace('bg-slate-700', 'bg-pink-600');
+                status.classList.replace('text-slate-300', 'text-white');
+                canvasContainer.classList.add('connect-mode-cursor');
+                selectedNodeId = null;
+            } else {
+                btnConnect.classList.remove('ring-2', 'ring-pink-500');
+                status.innerText = 'متوقف';
+                status.classList.replace('bg-pink-600', 'bg-slate-700');
+                status.classList.replace('text-white', 'text-slate-300');
+            }
+
+            if (mode === 'select' && btnSelect) {
+                btnSelect.className = 'px-2.5 py-2 bg-pink-600 text-white rounded-lg border border-pink-500 transition text-xs font-bold flex items-center justify-center gap-1';
+            } else if (mode === 'pan' && btnPan) {
+                btnPan.className = 'px-2.5 py-2 bg-pink-600 text-white rounded-lg border border-pink-500 transition text-xs font-bold flex items-center justify-center gap-1';
+                canvasContainer.classList.add('pan-mode-cursor');
+            } else if (mode === 'pen' && btnPen) {
+                btnPen.className = 'px-2.5 py-2 bg-pink-600 text-white rounded-lg border border-pink-500 transition text-xs font-bold flex items-center justify-center gap-1';
+                canvasContainer.classList.add('pen-mode-cursor');
+                penBox.classList.remove('hidden');
+            }
+
+            updatePropertiesPanel();
+            render();
+        }
+
+        // Property Panel Handlers
+        function updatePropertiesPanel() {
+            const fontSizeBox = document.getElementById('prop-fontsize-container');
+            const shapeTypeContainer = document.getElementById('prop-shape-type-container');
+            fontSizeBox.classList.add('hidden');
+
+            if (selectedNodeId) {
+                propertiesPanel.classList.remove('opacity-50', 'pointer-events-none');
+                shapeTypeContainer.style.display = 'block';
+                document.getElementById('prop-label-title').innerText = 'النص داخل الشكل';
+                document.getElementById('prop-color-container').style.display = 'block';
+                document.getElementById('prop-size-container').style.display = 'grid';
+                document.getElementById('prop-note-container').style.display = 'block';
+                edgeQuickLabels.classList.add('hidden');
+                const node = state.nodes.find(n => n.id === selectedNodeId);
+                propLabel.value = node.text;
+                propLabel.placeholder = "أدخل نص الشكل...";
+                propColor.value = node.color;
+                propWidth.value = Math.round(node.w);
+                propHeight.value = Math.round(node.h);
+                propNote.value = node.note || '';
+                
+                const typeSelect = document.getElementById('prop-shape-type');
+                if (typeSelect) typeSelect.value = node.type;
+            } else if (selectedTextId) {
+                propertiesPanel.classList.remove('opacity-50', 'pointer-events-none');
+                shapeTypeContainer.style.display = 'none';
+                document.getElementById('prop-label-title').innerText = 'النص الحر';
+                document.getElementById('prop-color-container').style.display = 'block';
+                document.getElementById('prop-size-container').style.display = 'none';
+                document.getElementById('prop-note-container').style.display = 'none';
+                fontSizeBox.classList.remove('hidden');
+                edgeQuickLabels.classList.add('hidden');
+                const txt = state.texts.find(t => t.id === selectedTextId);
+                propLabel.value = txt.text;
+                propColor.value = txt.color || '#0f172a';
+                propFontSize.value = txt.fontSize || 18;
+            } else if (selectedEdgeId) {
+                propertiesPanel.classList.remove('opacity-50', 'pointer-events-none');
+                document.getElementById('prop-label-title').innerText = 'تسمية السهم';
+                document.getElementById('prop-color-container').style.display = 'none';
+                document.getElementById('prop-size-container').style.display = 'none';
+                document.getElementById('prop-note-container').style.display = 'none';
+                edgeQuickLabels.classList.remove('hidden');
+                const edge = state.edges.find(e => e.id === selectedEdgeId);
+                propLabel.value = edge.label || '';
+                propLabel.placeholder = "مثال: T أو F أو نعم أو لا";
+            } else {
+                propertiesPanel.classList.add('opacity-50', 'pointer-events-none');
+                edgeQuickLabels.classList.add('hidden');
+                propLabel.value = '';
+                propNote.value = '';
+                propColor.value = '#ffffff';
+            }
+        }
+
+        propLabel.addEventListener('input', (e) => {
+            if (selectedNodeId) {
+                state.nodes.find(n => n.id === selectedNodeId).text = e.target.value;
+                renderNodes();
+            } else if (selectedTextId) {
+                state.texts.find(t => t.id === selectedTextId).text = e.target.value;
+                renderNodes();
+            } else if (selectedEdgeId) {
+                state.edges.find(ed => ed.id === selectedEdgeId).label = e.target.value;
+                renderEdges();
+            }
+        });
+
+        propFontSize.addEventListener('input', (e) => {
+            if (selectedTextId) {
+                const val = Math.max(10, Math.min(72, parseInt(e.target.value) || 18));
+                state.texts.find(t => t.id === selectedTextId).fontSize = val;
+                renderNodes();
+            }
+        });
+
+        propWidth.addEventListener('input', (e) => {
+            if (selectedNodeId) {
+                const val = Math.max(70, Math.min(450, parseInt(e.target.value) || 140));
+                state.nodes.find(n => n.id === selectedNodeId).w = val;
+                render();
+            }
+        });
+
+        propHeight.addEventListener('input', (e) => {
+            if (selectedNodeId) {
+                const val = Math.max(36, Math.min(300, parseInt(e.target.value) || 48));
+                state.nodes.find(n => n.id === selectedNodeId).h = val;
+                render();
+            }
+        });
+
+        propNote.addEventListener('input', (e) => {
+            if (selectedNodeId) {
+                const node = state.nodes.find(n => n.id === selectedNodeId);
+                node.note = e.target.value;
+                if (node.noteOffsetX === undefined) {
+                    node.noteOffsetX = 185;
+                    node.noteOffsetY = -10;
+                }
+                render();
+            }
+        });
+
+        propColor.addEventListener('input', (e) => {
+            if (selectedNodeId) {
+                state.nodes.find(n => n.id === selectedNodeId).color = e.target.value;
+                renderNodes(); 
+            } else if (selectedTextId) {
+                state.texts.find(t => t.id === selectedTextId).color = e.target.value;
+                renderNodes();
+            }
+        });
+
+        // Change selected node type while keeping its text, note and content
+        function changeSelectedNodeType(newType) {
+            if (!selectedNodeId) return;
+            const node = state.nodes.find(n => n.id === selectedNodeId);
+            if (!node) return;
+
+            node.type = newType;
+            node.color = COLORS[newType] || node.color;
+
+            // Adjust default dimensions based on new type if needed
+            if (newType === 'decision') {
+                node.w = 170;
+                node.h = 96;
+            } else if (newType === 'io') {
+                node.w = 160;
+                node.h = 48;
+            } else if (newType === 'start') {
+                node.w = 140;
+                node.h = 48;
+            } else if (newType === 'process') {
+                node.w = 140;
+                node.h = 48;
+            }
+
+            saveStateToActiveWorkspace();
+            updatePropertiesPanel();
+            render();
+        }
+
+        // Mouse Wheel Zoom on Canvas
+        canvasContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 0.1 : -0.1;
+            zoomCanvas(delta, e.clientX, e.clientY);
+        }, { passive: false });
+
+        // Mouse Events for Workspace (Pan, Pen, Select All, Deselect)
+        canvasContainer.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#canvas-toolbar')) return;
+
+            const worldPt = clientToWorld(e.clientX, e.clientY);
+
+            // 1. Freehand Pen Mode
+            if (currentMode === 'pen') {
+                isDrawingPen = true;
+                const penColor = document.getElementById('pen-color').value || '#e11d48';
+                const penWidth = parseInt(document.getElementById('pen-width').value) || 4;
+                currentPenPath = {
+                    color: penColor,
+                    width: penWidth,
+                    points: [{ x: worldPt.x, y: worldPt.y }]
+                };
+                state.drawings.push(currentPenPath);
+                renderDrawings();
+                return;
+            }
+
+            // 2. Hand Pan Mode (moves whole canvas viewport)
+            if (currentMode === 'pan') {
+                isPanning = true;
+                panStartX = e.clientX - state.panX;
+                panStartY = e.clientY - state.panY;
+                return;
+            }
+
+            // 3. Clicking empty canvas area
+            if (e.target === canvasContainer || e.target === nodesLayer || e.target === viewportWorld) {
+                if (isAllSelected) {
+                    isDragging = true;
+                    lastMouseWorldX = worldPt.x;
+                    lastMouseWorldY = worldPt.y;
+                    return;
+                }
+                if (currentMode === 'connect') {
+                    setMode('select');
+                }
+                selectedNodeId = null;
+                selectedEdgeId = null;
+                selectedTextId = null;
+                updatePropertiesPanel();
+                render();
+            }
+        });
+
+        // Window Mouse Events for Dragging, Panning, Pen Drawing & Resizing
+        window.addEventListener('mousemove', (e) => {
+            if (e.buttons === 0) {
+                isDragging = false;
+                isResizing = false;
+                isPanning = false;
+                isDrawingPen = false;
+                draggingNoteNodeId = null;
+                draggingTextId = null;
+                return;
+            }
+
+            const worldPt = clientToWorld(e.clientX, e.clientY);
+
+            // 0. Freehand Pen Drawing
+            if (isDrawingPen && currentPenPath) {
+                currentPenPath.points.push({ x: worldPt.x, y: worldPt.y });
+                renderDrawings();
+                return;
+            }
+
+            // 0.5 Panning the entire viewport
+            if (isPanning) {
+                state.panX = e.clientX - panStartX;
+                state.panY = e.clientY - panStartY;
+                applyViewportTransform();
+                return;
+            }
+
+            // 1. Resizing a Node
+            if (isResizing && selectedNodeId) {
+                const node = state.nodes.find(n => n.id === selectedNodeId);
+                if (!node) return;
+                const dx = (e.clientX - resizeStartX) / state.zoom;
+                const dy = (e.clientY - resizeStartY) / state.zoom;
+                node.w = Math.max(70, Math.round(resizeStartW - dx));
+                node.h = Math.max(36, Math.round(resizeStartH + dy));
+                propWidth.value = node.w;
+                propHeight.value = node.h;
+                render();
+                return;
+            }
+
+            // 2. Dragging a Callout Note Card
+            if (draggingNoteNodeId) {
+                const node = state.nodes.find(n => n.id === draggingNoteNodeId);
+                if (!node) return;
+                const noteX = worldPt.x - dragOffsetX;
+                const noteY = worldPt.y - dragOffsetY;
+                node.noteOffsetX = noteX - node.x;
+                node.noteOffsetY = noteY - node.y;
+                render();
+                return;
+            }
+
+            // 2.5 Dragging a Free Text Item
+            if (draggingTextId) {
+                const txt = state.texts.find(t => t.id === draggingTextId);
+                if (!txt) return;
+                txt.x = worldPt.x - dragOffsetX;
+                txt.y = worldPt.y - dragOffsetY;
+                renderNodes();
+                return;
+            }
+
+            // 3. Moving All Selected Elements Together
+            if (isDragging && isAllSelected) {
+                const dx = worldPt.x - lastMouseWorldX;
+                const dy = worldPt.y - lastMouseWorldY;
+                lastMouseWorldX = worldPt.x;
+                lastMouseWorldY = worldPt.y;
+
+                state.nodes.forEach(n => { n.x += dx; n.y += dy; });
+                state.texts.forEach(t => { t.x += dx; t.y += dy; });
+                state.drawings.forEach(d => {
+                    d.points.forEach(pt => { pt.x += dx; pt.y += dy; });
+                });
+                render();
+                return;
+            }
+
+            // 4. Dragging a Single Node
+            if (isDragging && selectedNodeId && currentMode === 'select') {
+                const node = state.nodes.find(n => n.id === selectedNodeId);
+                if (!node) return;
+                
+                node.x = worldPt.x - dragOffsetX;
+                node.y = worldPt.y - dragOffsetY;
+                
+                render();
+            }
+        });
+
+        // إصلاح مشكلة التصاق الشكل بالفأرة عند إفلات الزر
+        window.addEventListener('mouseup', () => {
+            commitProjectChange();
+            isDragging = false;
+            isResizing = false;
+            isPanning = false;
+            isDrawingPen = false;
+            currentPenPath = null;
+            draggingNoteNodeId = null;
+            draggingTextId = null;
+        });
+
+        window.addEventListener('blur', () => {
+            commitProjectChange();
+            isDragging = false;
+            isResizing = false;
+            isPanning = false;
+            isDrawingPen = false;
+            currentPenPath = null;
+            draggingNoteNodeId = null;
+            draggingTextId = null;
+        });
+
+        // Mathematical helper to calculate exact boundary intersection points
+        function getIntersection(n1, n2) {
+            const c1 = { x: n1.x + n1.w/2, y: n1.y + n1.h/2 };
+            const c2 = { x: n2.x + n2.w/2, y: n2.y + n2.h/2 };
+            const dx = c2.x - c1.x;
+            const dy = c2.y - c1.y;
+
+            if (dx === 0 && dy === 0) return c2;
+
+            // Exact rhombus (diamond) intersection equation: |x/(w/2)| + |y/(h/2)| = 1
+            if (n2.type === 'decision') {
+                const hw = n2.w / 2;
+                const hh = n2.h / 2;
+                const scale = 1 / (Math.abs(dx) / hw + Math.abs(dy) / hh);
+                return {
+                    x: c2.x - dx * scale,
+                    y: c2.y - dy * scale
+                };
+            }
+
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            let ix, iy;
+
+            if (absDx * n2.h > absDy * n2.w) {
+                ix = c2.x - Math.sign(dx) * n2.w/2;
+                iy = c2.y - (dy / dx) * Math.sign(dx) * n2.w/2;
+            } else {
+                iy = c2.y - Math.sign(dy) * n2.h/2;
+                ix = c2.x - (dx / dy) * Math.sign(dy) * n2.h/2;
+            }
+            return { x: ix, y: iy };
+        }
+
+        // Render functions
+        function render() {
+            renderNodes();
+            renderEdges();
+            renderDrawings();
+        }
+
+        function renderDrawings() {
+            trackProjectChange();
+            drawingsGroup.innerHTML = '';
+            state.drawings.forEach(d => {
+                if (!d.points || d.points.length === 0) return;
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                let dStr = `M ${d.points[0].x} ${d.points[0].y}`;
+                for (let i = 1; i < d.points.length; i++) {
+                    dStr += ` L ${d.points[i].x} ${d.points[i].y}`;
+                }
+                if (d.points.length === 1) {
+                    dStr += ` L ${d.points[0].x + 0.5} ${d.points[0].y + 0.5}`;
+                }
+                path.setAttribute('d', dStr);
+                path.setAttribute('stroke', d.color || '#e11d48');
+                path.setAttribute('stroke-width', d.width || 4);
+                path.setAttribute('stroke-linecap', 'round');
+                path.setAttribute('stroke-linejoin', 'round');
+                path.setAttribute('fill', 'none');
+                drawingsGroup.appendChild(path);
+            });
+        }
+
+        function renderNodes() {
+            trackProjectChange();
+            nodesLayer.innerHTML = '';
+            
+            state.nodes.forEach(node => {
+                const el = document.createElement('div');
+                el.className = `node-base shape-${node.type}`;
+                el.style.left = `${node.x}px`;
+                el.style.top = `${node.y}px`;
+                el.style.width = `${node.w}px`;
+                el.style.height = `${node.h}px`;
+                el.setAttribute('data-id', node.id);
+
+                if (node.id === selectedNodeId || isAllSelected) el.classList.add('node-selected');
+                if (node.id === connectStartNodeId) el.classList.add('node-connecting-start');
+
+                if (node.type === 'decision') {
+                    const svgNS = "http://www.w3.org/2000/svg";
+                    const svgEl = document.createElementNS(svgNS, "svg");
+                    svgEl.setAttribute("class", "decision-svg");
+                    svgEl.setAttribute("viewBox", `0 0 ${node.w} ${node.h}`);
+
+                    const polygon = document.createElementNS(svgNS, "polygon");
+                    const pts = `${node.w/2},2 ${node.w-2},${node.h/2} ${node.w/2},${node.h-2} 2,${node.h/2}`;
+                    polygon.setAttribute("points", pts);
+                    polygon.setAttribute("fill", node.color);
+                    polygon.setAttribute("stroke", "#57534e");
+                    polygon.setAttribute("stroke-width", "2");
+                    svgEl.appendChild(polygon);
+                    el.appendChild(svgEl);
+                    
+                    const span = document.createElement('span');
+                    span.innerText = node.text;
+                    span.style.zIndex = '1';
+                    span.style.lineHeight = '1.25';
+                    span.style.maxWidth = `${Math.max(80, node.w - 45)}px`;
+                    el.appendChild(span);
+                } else if (node.type === 'io') {
+                    const bg = document.createElement('div');
+                    bg.className = 'io-bg';
+                    bg.style.backgroundColor = node.color;
+                    el.appendChild(bg);
+                    
+                    const span = document.createElement('span');
+                    span.innerText = node.text;
+                    span.style.zIndex = '1';
+                    el.appendChild(span);
+                } else {
+                    el.style.backgroundColor = node.color;
+                    el.innerText = node.text;
+                }
+
+                // Add Resize Handle & Floating Note Button when selected
+                if (node.id === selectedNodeId && currentMode === 'select') {
+                    const handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    handle.title = 'اسحب لتغيير حجم الشكل';
+                    handle.addEventListener('mousedown', (e) => {
+                        e.stopPropagation();
+                        isResizing = true;
+                        isDragging = false;
+                        resizeStartW = node.w;
+                        resizeStartH = node.h;
+                        resizeStartX = e.clientX;
+                        resizeStartY = e.clientY;
+                    });
+                    el.appendChild(handle);
+
+                    // Floating "+ ملاحظة" button right above the selected shape
+                    const noteBtn = document.createElement('button');
+                    noteBtn.className = 'node-note-btn';
+                    noteBtn.innerText = (node.note && node.note.trim()) ? '💬 تعديل الملاحظة' : '💬 + إضافة ملاحظة';
+                    noteBtn.addEventListener('mousedown', (e) => {
+                        e.stopPropagation();
+                        quickAddNoteToSelected();
+                    });
+                    el.appendChild(noteBtn);
+                }
+
+                // Interactions
+                el.addEventListener('mousedown', (e) => {
+                    if (currentMode === 'pen' || currentMode === 'pan') return;
+                    e.stopPropagation();
+                    const worldPt = clientToWorld(e.clientX, e.clientY);
+
+                    if (isAllSelected) {
+                        isDragging = true;
+                        lastMouseWorldX = worldPt.x;
+                        lastMouseWorldY = worldPt.y;
+                        return;
+                    }
+
+                    if (currentMode === 'connect') {
+                        if (!connectStartNodeId) {
+                            connectStartNodeId = node.id;
+                            render();
+                        } else if (connectStartNodeId !== node.id) {
+                            const startNode = state.nodes.find(n => n.id === connectStartNodeId);
+                            let defaultLabel = '';
+                            if (startNode && startNode.type === 'decision') {
+                                const existingOut = state.edges.filter(ed => ed.from === startNode.id);
+                                defaultLabel = existingOut.length === 0 ? 'T (نعم)' : 'F (لا)';
+                            }
+                            const newEdgeId = 'e' + edgeCounter++;
+                            state.edges.push({
+                                id: newEdgeId,
+                                from: connectStartNodeId,
+                                to: node.id,
+                                label: defaultLabel
+                            });
+                            setMode('select');
+                            selectEdge(newEdgeId);
+                            render();
+                        }
+                    } else {
+                        selectNode(node.id);
+                        isDragging = true;
+                        dragOffsetX = worldPt.x - node.x;
+                        dragOffsetY = worldPt.y - node.y;
+                        render();
+                    }
+                });
+
+                nodesLayer.appendChild(el);
+
+                // Render Textbook-style Callout Note Card if node has a note
+                if (node.note && node.note.trim() !== '') {
+                    const noteEl = document.createElement('div');
+                    noteEl.className = 'note-card';
+                    const noteX = node.x + (node.noteOffsetX !== undefined ? node.noteOffsetX : 185);
+                    const noteY = node.y + (node.noteOffsetY !== undefined ? node.noteOffsetY : -10);
+                    noteEl.style.left = `${noteX}px`;
+                    noteEl.style.top = `${noteY}px`;
+                    noteEl.innerText = node.note;
+                    noteEl.title = 'اسحب لتحريك الملاحظة، أو انقر مرتين لتعديل النص';
+
+                    noteEl.addEventListener('mousedown', (e) => {
+                        if (currentMode === 'pen' || currentMode === 'pan') return;
+                        e.stopPropagation();
+                        selectNode(node.id);
+                        draggingNoteNodeId = node.id;
+                        const worldPt = clientToWorld(e.clientX, e.clientY);
+                        dragOffsetX = worldPt.x - noteX;
+                        dragOffsetY = worldPt.y - noteY;
+                        render();
+                    });
+
+                    noteEl.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        selectNode(node.id);
+                        propNote.focus();
+                        propNote.select();
+                    });
+
+                    nodesLayer.appendChild(noteEl);
+                }
+            });
+
+            // Render Free Text Items on Canvas
+            state.texts.forEach(txt => {
+                const tEl = document.createElement('div');
+                tEl.className = `free-text-item ${(txt.id === selectedTextId || isAllSelected) ? 'free-text-selected' : ''}`;
+                tEl.style.left = `${txt.x}px`;
+                tEl.style.top = `${txt.y}px`;
+                tEl.style.color = txt.color || '#0f172a';
+                tEl.style.fontSize = `${txt.fontSize || 18}px`;
+                tEl.innerText = txt.text;
+                tEl.title = 'اسحب لتحريك النص، أو عدله من الخصائص';
+
+                tEl.addEventListener('mousedown', (e) => {
+                    if (currentMode === 'pen' || currentMode === 'pan') return;
+                    e.stopPropagation();
+                    const worldPt = clientToWorld(e.clientX, e.clientY);
+                    if (isAllSelected) {
+                        isDragging = true;
+                        lastMouseWorldX = worldPt.x;
+                        lastMouseWorldY = worldPt.y;
+                        return;
+                    }
+                    selectText(txt.id);
+                    draggingTextId = txt.id;
+                    dragOffsetX = worldPt.x - txt.x;
+                    dragOffsetY = worldPt.y - txt.y;
+                    renderNodes();
+                });
+
+                tEl.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    selectText(txt.id);
+                    propLabel.focus();
+                    propLabel.select();
+                });
+
+                nodesLayer.appendChild(tEl);
+            });
+        }
+
+        function renderEdges() {
+            trackProjectChange();
+            edgesGroup.innerHTML = '';
+            notesLinesGroup.innerHTML = '';
+            
+            state.edges.forEach(edge => {
+                const n1 = state.nodes.find(n => n.id === edge.from);
+                const n2 = state.nodes.find(n => n.id === edge.to);
+                
+                if (!n1 || !n2) return;
+
+                const c1x = n1.x + n1.w / 2;
+                const c1y = n1.y + n1.h / 2;
+                const endPt = getIntersection(n1, n2);
+
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                let dPath = `M ${c1x} ${c1y} L ${endPt.x} ${endPt.y}`;
+                let labelX = (c1x + endPt.x) / 2;
+                let labelY = (c1y + endPt.y) / 2 - 8;
+
+                // Join accepted branches to the continuation from a right-side
+                // corridor instead of crossing the remaining elif decisions.
+                if (edge.routing === 'loop-back') {
+                    // Outer-right return corridor: body/continue -> the loop header.
+                    const fromX = n1.x + n1.w;
+                    const fromY = n1.y + n1.h / 2;
+                    const targetX = n2.x + n2.w;
+                    const targetY = n2.y + n2.h / 2;
+                    const outerX = Math.max(fromX, targetX) + 115;
+                    dPath = `M ${fromX} ${fromY} L ${outerX} ${fromY} L ${outerX} ${targetY} L ${targetX} ${targetY}`;
+                    labelX = (fromX + outerX) / 2;
+                    labelY = fromY - 9;
+                } else if (edge.routing === 'return-right') {
+                    const fromX = n1.x + n1.w;
+                    const fromY = n1.y + n1.h / 2;
+                    const targetX = n2.x + n2.w;
+                    const targetY = n2.y + n2.h / 2;
+                    const outerX = Math.max(fromX, targetX) + 155;
+                    dPath = `M ${fromX} ${fromY} L ${outerX} ${fromY} L ${outerX} ${targetY} L ${targetX} ${targetY}`;
+                    labelX = (fromX + outerX) / 2;
+                    labelY = fromY - 9;
+                } else if (n1.type === 'decision' && Math.abs(c1x - (n2.x + n2.w/2)) <= 45) {
+                    // Direct NO path leaves the lower tip of the diamond.
+                    const fromX = c1x;
+                    const fromY = n1.y + n1.h - 2;
+                    dPath = `M ${fromX} ${fromY} L ${endPt.x} ${endPt.y}`;
+                    labelX = fromX + 23;
+                    labelY = (fromY + endPt.y) / 2;
+                } else if (n1.type === 'decision' && Math.abs(c1x - (n2.x + n2.w/2)) > 45) {
+                    const targetX = n2.x + n2.w / 2;
+                    const targetTopY = n2.y;
+                    const startEdgeX = targetX > c1x ? (n1.x + n1.w - 2) : (n1.x + 2);
+                    dPath = `M ${startEdgeX} ${c1y} L ${targetX} ${c1y} L ${targetX} ${targetTopY}`;
+                    labelX = (startEdgeX + targetX) / 2;
+                    labelY = c1y - 10;
+                } else if (n2.type === 'io' && Math.abs(c1x - (n2.x + n2.w/2)) > 45) {
+                    const targetX = n2.x + n2.w / 2;
+                    const midY = (n1.y + n1.h + n2.y) / 2;
+                    dPath = `M ${c1x} ${n1.y + n1.h} L ${c1x} ${midY} L ${targetX} ${midY} L ${targetX} ${n2.y}`;
+                }
+
+                path.setAttribute('d', dPath);
+                path.setAttribute('class', `edge-path ${edge.id === selectedEdgeId ? 'edge-selected' : ''}`);
+                
+                const markerId = edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)';
+                path.setAttribute('marker-end', markerId);
+                
+                path.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    if (currentMode === 'select') {
+                        selectEdge(edge.id);
+                        renderEdges();
+                    }
+                });
+
+                edgesGroup.appendChild(path);
+
+                // Add Text Label if exists
+                if (edge.label) {
+                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    text.setAttribute('x', labelX);
+                    text.setAttribute('y', labelY);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('fill', '#334155');
+                    text.setAttribute('font-size', '14px');
+                    text.setAttribute('font-weight', 'bold');
+                    text.style.pointerEvents = 'none';
+                    text.textContent = edge.label;
+                    
+                    const textOutline = text.cloneNode(true);
+                    textOutline.setAttribute('stroke', '#e8e6df');
+                    textOutline.setAttribute('stroke-width', '5');
+                    textOutline.setAttribute('stroke-linejoin', 'round');
+                    
+                    edgesGroup.appendChild(textOutline);
+                    edgesGroup.appendChild(text);
+                }
+            });
+
+            // Render Curved Callout Note Connectors (matching textbook cyan pointers)
+            state.nodes.forEach(node => {
+                if (!node.note || !node.note.trim()) return;
+                const noteX = node.x + (node.noteOffsetX !== undefined ? node.noteOffsetX : 185);
+                const noteY = node.y + (node.noteOffsetY !== undefined ? node.noteOffsetY : -10);
+                const noteCenterX = noteX + 60;
+                const noteCenterY = noteY + 22;
+
+                const nodeCenterX = node.x + node.w / 2;
+                const nodeCenterY = node.y + node.h / 2;
+
+                const isNoteRight = noteCenterX >= nodeCenterX;
+                const startX = isNoteRight ? noteX : (noteX + 120);
+                const startY = noteCenterY;
+                const targetX = isNoteRight ? (node.x + node.w - 14) : (node.x + 14);
+                const targetY = nodeCenterY;
+
+                const ctrlX = (startX + targetX) / 2;
+                const ctrlY = startY;
+
+                const notePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                notePath.setAttribute('d', `M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${targetX} ${targetY}`);
+                notePath.setAttribute('stroke', '#0284c7');
+                notePath.setAttribute('stroke-width', '1.8');
+                notePath.setAttribute('fill', 'none');
+                notePath.setAttribute('marker-end', 'url(#note-dot)');
+                notesLinesGroup.appendChild(notePath);
+            });
+        }
+
+        // Export Features
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag] || tag));
+        }
+
+        // Export as a real, editable SVG, preserving the actual board geometry.
+        // The export uses the full diagram bounds (not the current screen viewport).
+        function svgNumber(value) {
+            return Number(Number(value).toFixed(3));
+        }
+
+        function canvasWorldRect(element) {
+            const rect = element.getBoundingClientRect();
+            const canvas = canvasContainer.getBoundingClientRect();
+            return {
+                x: (rect.left - canvas.left - state.panX) / state.zoom,
+                y: (rect.top - canvas.top - state.panY) / state.zoom,
+                w: rect.width / state.zoom,
+                h: rect.height / state.zoom
+            };
+        }
+
+        // A DOM Range yields the *actual* wrapped lines after Cairo shaping,
+        // CSS line wrapping and explicit newlines have been applied by the browser.
+        // This is considerably more faithful than collapsing line breaks into spaces.
+        function getSvgTextLines(element) {
+            const lines = [];
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            const range = document.createRange();
+            const canvas = canvasContainer.getBoundingClientRect();
+            let textNode;
+            while ((textNode = walker.nextNode())) {
+                if (textNode.parentElement?.closest('.node-note-btn, .resize-handle')) continue;
+                const content = textNode.textContent || '';
+                for (let i = 0; i < content.length; i++) {
+                    const ch = content[i];
+                    if (ch === '\n' || ch === '\r') continue;
+                    range.setStart(textNode, i);
+                    range.setEnd(textNode, i + 1);
+                    const r = range.getBoundingClientRect();
+                    if (!Number.isFinite(r.top) || r.height < 0.1) continue;
+                    const y = (r.top - canvas.top - state.panY + r.height / 2) / state.zoom;
+                    const x1 = (r.left - canvas.left - state.panX) / state.zoom;
+                    const x2 = (r.right - canvas.left - state.panX) / state.zoom;
+                    let line = lines.find(item => Math.abs(item.y - y) < 2);
+                    if (!line) {
+                        line = {y, minX: x1, maxX: x2, value: ''};
+                        lines.push(line);
+                    }
+                    line.minX = Math.min(line.minX, x1);
+                    line.maxX = Math.max(line.maxX, x2);
+                    line.value += ch;
+                }
+            }
+            range.detach?.();
+            return lines.filter(line => line.value.trim().length > 0).sort((a, b) => a.y - b.y);
+        }
+
+        function svgTextFromRenderedElement(element, fillOverride) {
+            if (!element) return '';
+            const style = getComputedStyle(element);
+            const fontSize = parseFloat(style.fontSize) || 14;
+            const fontWeight = style.fontWeight || '700';
+            const color = fillOverride || style.color || '#1e293b';
+            const direction = style.direction === 'rtl' ? 'rtl' : 'ltr';
+            const fontFamily = "'Cairo', 'Inter', Arial, sans-serif";
+            let result = '';
+            for (const line of getSvgTextLines(element)) {
+                const content = line.value.trim();
+                // SVG uses the same world coordinates and one text element per
+                // browser-rendered line. This also handles multiline callouts.
+                const centerX = (line.minX + line.maxX) / 2;
+                result += `<text x="${svgNumber(centerX)}" y="${svgNumber(line.y)}" text-anchor="middle" dominant-baseline="central" direction="${direction}" unicode-bidi="plaintext" font-family="${fontFamily}" font-size="${svgNumber(fontSize)}" font-weight="${escapeHTML(fontWeight)}" fill="${escapeHTML(color)}">${escapeHTML(content)}</text>`;
+            }
+            return result;
+        }
+
+        function createFlowchartSVG() {
+            // Do not remove selection from the editor: simply omit UI handles,
+            // selected halos and buttons from the generated document.
+            const nodeElements = Array.from(nodesLayer.querySelectorAll('.node-base'));
+            const noteElements = Array.from(nodesLayer.querySelectorAll('.note-card'));
+            const textElements = Array.from(nodesLayer.querySelectorAll('.free-text-item'));
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const includeBox = (x, y, w, h) => {
+                if (![x, y, w, h].every(Number.isFinite)) return;
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x + w);
+                maxY = Math.max(maxY, y + h);
+            };
+
+            state.nodes.forEach(node => {
+                const skew = node.type === 'io' ? Math.abs(Math.tan(20 * Math.PI / 180) * node.h / 2) : 0;
+                includeBox(node.x - skew - 3, node.y - 3, node.w + 2*skew + 6, node.h + 6);
+            });
+            [...noteElements, ...textElements].forEach(el => {
+                const r = canvasWorldRect(el);
+                includeBox(r.x - 3, r.y - 3, r.w + 6, r.h + 6);
+            });
+            state.drawings.forEach(d => {
+                (d.points || []).forEach(point => {
+                    const radius = (Number(d.width) || 4) / 2 + 2;
+                    includeBox(point.x - radius, point.y - radius, 2*radius, 2*radius);
+                });
+            });
+            // Include full arrow paths, including the return-right corridors,
+            // so the exported SVG does not crop them outside the node envelope.
+            Array.from(edgesGroup.querySelectorAll('path')).forEach(path => {
+                try {
+                    const b = path.getBBox();
+                    includeBox(b.x - 5, b.y - 5, b.width + 10, b.height + 10);
+                } catch (_) { /* Some SVG hosts cannot measure detached elements. */ }
+            });
+            // Include edge label extents, including displaced elbow labels.
+            Array.from(edgesGroup.querySelectorAll('text')).forEach(label => {
+                const r = canvasWorldRect(label);
+                includeBox(r.x - 3, r.y - 3, r.w + 6, r.h + 6);
+            });
+
+            if (!Number.isFinite(minX)) {
+                minX = 0; minY = 0;
+                maxX = canvasContainer.clientWidth || 800;
+                maxY = canvasContainer.clientHeight || 600;
+            }
+            const margin = 28;
+            const vx = Math.floor(minX - margin);
+            const vy = Math.floor(minY - margin);
+            const vw = Math.max(120, Math.ceil(maxX + margin - vx));
+            const vh = Math.max(120, Math.ceil(maxY + margin - vy));
+
+            let svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${vw}" height="${vh}" viewBox="${vx} ${vy} ${vw} ${vh}" role="img">`;
+            svg += '<title>المخطط الانسيابي</title>';
+            svg += `<defs>
+              <pattern id="flowchart-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 0 0 H 32 M 0 0 V 32" fill="none" stroke="#d6d3cb" stroke-width="1"/></pattern>
+              <filter id="flowchart-shadow" x="-20%" y="-35%" width="140%" height="180%"><feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/><feOffset in="blur" dx="0" dy="3" result="offset"/><feFlood flood-color="#000" flood-opacity=".08" result="dark"/><feComposite in="dark" in2="offset" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              <marker id="arrowhead" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#57534e"/></marker>
+              <marker id="note-dot" markerWidth="8" markerHeight="8" refX="4" refY="4"><circle cx="4" cy="4" r="3" fill="#0284c7"/></marker>
+            </defs>`;
+            svg += `<style>.edge-path{fill:none;stroke:#57534e;stroke-width:2.5;stroke-linejoin:round}.flowchart-text{font-family:'Cairo','Inter',Arial,sans-serif}</style>`;
+            svg += `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="#e8e6df"/>`;
+            svg += `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="url(#flowchart-grid)"/>`;
+
+            // Keep exactly the same routed arrows, decision labels and note curves
+            // as the live renderer. Never export the selected/highlighted state.
+            svg += `<g id="export-edges">${edgesGroup.innerHTML
+                .replace(/edge-path edge-selected/g, 'edge-path')
+                .replace(/url\(#arrowhead-selected\)/g, 'url(#arrowhead)')
+            }</g>`;
+            svg += `<g id="export-note-connectors">${notesLinesGroup.innerHTML}</g>`;
+            svg += `<g id="export-freehand">${drawingsGroup.innerHTML}</g>`;
+
+            state.nodes.forEach(node => {
+                const x = svgNumber(node.x), y = svgNumber(node.y);
+                const w = svgNumber(node.w), h = svgNumber(node.h);
+                const cx = svgNumber(node.x + node.w / 2), cy = svgNumber(node.y + node.h / 2);
+                const fill = escapeHTML(String(node.color || COLORS[node.type] || '#f5cfa6'));
+                if (node.type === 'start') {
+                    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${svgNumber(node.h / 2)}" fill="${fill}" stroke="#57534e" stroke-width="2" filter="url(#flowchart-shadow)"/>`;
+                } else if (node.type === 'io') {
+                    // CSS skewX(-20deg) transforms around the element's center.
+                    const skew = node.h * Math.tan(20 * Math.PI / 180) / 2;
+                    const pts = `${svgNumber(x+skew)},${y} ${svgNumber(x+w+skew)},${y} ${svgNumber(x+w-skew)},${svgNumber(y+h)} ${svgNumber(x-skew)},${svgNumber(y+h)}`;
+                    svg += `<polygon points="${pts}" fill="${fill}" stroke="#57534e" stroke-width="2" filter="url(#flowchart-shadow)"/>`;
+                } else if (node.type === 'process') {
+                    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${fill}" stroke="#57534e" stroke-width="2" filter="url(#flowchart-shadow)"/>`;
+                } else if (node.type === 'decision') {
+                    // Match the inset points of the live decision SVG (2px inset).
+                    const pts = `${cx},${svgNumber(y+2)} ${svgNumber(x+w-2)},${cy} ${cx},${svgNumber(y+h-2)} ${svgNumber(x+2)},${cy}`;
+                    svg += `<polygon points="${pts}" fill="${fill}" stroke="#57534e" stroke-width="2" filter="url(#flowchart-shadow)"/>`;
+                }
+                const element = nodeElements.find(el => el.dataset.id === node.id);
+                if (element) {
+                    svg += svgTextFromRenderedElement(element.querySelector(':scope > span') || element, '#1e293b');
+                }
+            });
+
+            // Use measured dimensions; not the old fixed 125×42 rectangles.
+            // The matching note DOM nodes follow the same order as state.nodes.
+            let noteIndex = 0;
+            state.nodes.forEach(node => {
+                if (!node.note || !node.note.trim()) return;
+                const element = noteElements[noteIndex++];
+                if (!element) return;
+                const r = canvasWorldRect(element);
+                svg += `<rect x="${svgNumber(r.x)}" y="${svgNumber(r.y)}" width="${svgNumber(r.w)}" height="${svgNumber(r.h)}" rx="14" fill="#fff" stroke="#0284c7" stroke-width="2.5" filter="url(#flowchart-shadow)"/>`;
+                svg += svgTextFromRenderedElement(element, '#0284c7');
+            });
+
+            state.texts.forEach((txt, index) => {
+                const element = textElements[index];
+                if (element) svg += svgTextFromRenderedElement(element, txt.color || '#0f172a');
+            });
+            svg += '</svg>';
+            return svg;
+        }
+
+        async function exportSVG() {
+            // Wait for the in-app font to finish loading before reading text layout.
+            if (document.fonts?.ready) await document.fonts.ready;
+            const svgContent = createFlowchartSVG();
+            const blob = new Blob([svgContent], {type: 'image/svg+xml;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = 'flowchart.svg';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 30000);
+        }
+
+        // Export to Python Code
+        function showPythonModal() {
+            const modal = document.getElementById('code-modal');
+            const textArea = document.getElementById('python-code-area');
+            
+            let code = `"""\nGenerated by Flowchart Builder\nDependencies: pip install graphviz\n"""\n`;
+            code += `from graphviz import Digraph\n\n`;
+            code += `def create_flowchart():\n`;
+            code += `    dot = Digraph(comment='Flowchart')\n`;
+            code += `    dot.attr(rankdir='TB')  # Top to Bottom\n`;
+            code += `    dot.attr('node', fontname='Cairo, Arial', style='filled', fontcolor='#1e293b', color='#57534e')\n\n`;
+            
+            code += `    # 1. Define Flowchart Shapes (Nodes)\n`;
+            state.nodes.forEach(n => {
+                let shape = 'box';
+                let style = 'filled';
+                if (n.type === 'start') {
+                    shape = 'box';
+                    style = 'filled,rounded';
+                } else if (n.type === 'io') {
+                    shape = 'parallelogram';
+                } else if (n.type === 'decision') {
+                    shape = 'diamond';
+                }
+                const safeText = n.text.replace(/'/g, "\\'").replace(/\n/g, "\\n");
+                code += `    dot.node('${n.id}', '${safeText}', shape='${shape}', style='${style}', fillcolor='${n.color}')\n`;
+            });
+
+            code += `\n    # 2. Define Connections (Arrows & T/F Decision Labels)\n`;
+            state.edges.forEach(e => {
+                let labelAttr = e.label ? `, label='${e.label.replace(/'/g, "\\'")}'` : '';
+                code += `    dot.edge('${e.from}', '${e.to}', color='#57534e'${labelAttr})\n`;
+            });
+
+            code += `\n    # 3. Render output file\n`;
+            code += `    dot.render('flowchart_output', format='png', view=True)\n\n`;
+            code += `if __name__ == '__main__':\n`;
+            code += `    create_flowchart()\n`;
+
+            textArea.value = code;
+            modal.classList.remove('hidden');
+        }
+
+        function copyPythonCode(e) {
+            const textArea = document.getElementById('python-code-area');
+            textArea.select();
+            document.execCommand('copy');
+            
+            const btn = e.target;
+            const originalText = btn.innerText;
+            btn.innerText = 'تم النسخ بنجاح!';
+            btn.classList.add('bg-emerald-600');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('bg-emerald-600');
+            }, 2000);
+        }
+
+        // Load a sample Python snippet for quick testing
+
+        function escapeHtml(value) {
+            return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        const PY_KEYWORDS = new Set(('False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield match case').split(' '));
+        const PY_BUILTINS = new Set(('abs all any ascii bin bool breakpoint bytearray bytes callable chr classmethod compile complex delattr dict dir divmod enumerate eval filter float format frozenset getattr globals hasattr hash help hex id input int isinstance issubclass iter len list locals map max memoryview min next object oct open ord pow print property range repr reversed round set setattr slice sorted staticmethod str sum super tuple type vars zip __import__').split(' '));
+
+        function highlightPythonCode(code) {
+            if (!code) return '<span class="python-editor-placeholder"># اكتب أو الصق كود بايثون هنا</span>';
+            const src = String(code);
+            const chunks = [];
+            let pos = 0;
+            let afterDef = false;
+            const emit = (value, tag) => chunks.push(tag ? `<span class="tok-${tag}">${escapeHtml(value)}</span>` : escapeHtml(value));
+            const isNameStart = c => /[A-Za-z_]/.test(c);
+            const isNameBody = c => /[A-Za-z0-9_]/.test(c);
+            while (pos < src.length) {
+                const ch = src[pos];
+                if (ch === '#') {
+                    const end = src.indexOf('\n', pos);
+                    const next = end < 0 ? src.length : end;
+                    emit(src.slice(pos, next), 'comment'); pos = next;
+                    continue;
+                }
+                // Recognize single, double, and triple quoted strings; keep all internal words untouched.
+                if (ch === '"' || ch === "'") {
+                    const delim = src.startsWith(ch.repeat(3), pos) ? ch.repeat(3) : ch;
+                    let at = pos + delim.length;
+                    while (at < src.length) {
+                        if (src[at] === '\\') { at += 2; continue; }
+                        if (src.startsWith(delim, at)) { at += delim.length; break; }
+                        if (delim.length === 1 && src[at] === '\n') break;
+                        at++;
+                    }
+                    emit(src.slice(pos, at), 'string'); pos = at; continue;
+                }
+                if (isNameStart(ch)) {
+                    let at = pos + 1;
+                    while (at < src.length && isNameBody(src[at])) at++;
+                    const name = src.slice(pos, at);
+                    const kind = afterDef ? 'defname' : PY_KEYWORDS.has(name) ? 'keyword' : PY_BUILTINS.has(name) ? 'builtin' : null;
+                    emit(name, kind);
+                    if (name === 'def' || name === 'class') afterDef = true;
+                    else if (afterDef) afterDef = false;
+                    pos = at; continue;
+                }
+                // Numbers and operators are plain black, matching IDLE Classic.
+                emit(ch);
+                if (ch === '\n') afterDef = false;
+                pos++;
+            }
+            return chunks.join('');
+        }
+
+        function getPythonModalElements() {
+            return {
+                modal: document.getElementById('python-import-modal'),
+                input: document.getElementById('python-modal-input'),
+                highlight: document.getElementById('python-editor-highlight'),
+                lines: document.getElementById('python-editor-lines'),
+                sidebar: document.getElementById('python-input-area')
+            };
+        }
+
+        function updatePythonEditorView() {
+            const { input, highlight, lines } = getPythonModalElements();
+            if (!input || !highlight || !lines) return;
+            const code = input.value || '';
+            highlight.innerHTML = highlightPythonCode(code) + '\n';
+            const count = Math.max(1, code.split('\n').length);
+            lines.textContent = Array.from({ length: count }, (_, i) => String(i + 1)).join('\n');
+            highlight.scrollTop = input.scrollTop;
+            highlight.scrollLeft = input.scrollLeft;
+            lines.scrollTop = input.scrollTop;
+            updatePythonEditorCaretStatus();
+        }
+
+        function updatePythonEditorCaretStatus() {
+            const input = document.getElementById('python-modal-input');
+            const status = document.getElementById('python-idle-status');
+            if (!input || !status) return;
+            const preceding = input.value.slice(0, input.selectionStart);
+            const ln = preceding.split('\n').length;
+            const col = preceding.length - preceding.lastIndexOf('\n');
+            status.textContent = `Ln ${ln}, Col ${col}  |  Python 3  |  UTF-8`;
+        }
+
+        function syncPythonEditorFromSidebar(openIfNeeded = false) {
+            const { modal, input, sidebar } = getPythonModalElements();
+            if (!input || !sidebar) return;
+            input.value = sidebar.value || '';
+            updatePythonEditorView();
+            if (openIfNeeded && modal) modal.classList.remove('hidden');
+            if (openIfNeeded) {
+                requestAnimationFrame(() => {
+                    input.focus();
+                    input.setSelectionRange(input.value.length, input.value.length);
+                });
+            }
+        }
+
+        function syncSidebarFromPythonEditor() {
+            const { input, sidebar } = getPythonModalElements();
+            if (!input || !sidebar) return;
+            sidebar.value = input.value;
+        }
+
+        function openPythonImportModal() {
+            syncPythonEditorFromSidebar(true);
+        }
+
+        function closePythonImportModal() {
+            const { modal } = getPythonModalElements();
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function clearPythonEditor() {
+            const { input } = getPythonModalElements();
+            if (!input) return;
+            input.value = '';
+            updatePythonEditorView();
+            input.focus();
+        }
+
+        function convertPythonToFlowchartFromModal(mode = 'append') {
+            syncSidebarFromPythonEditor();
+            showPythonConversionStatus('');
+            const modalStatus = document.getElementById('python-modal-conversion-status');
+            if (modalStatus) modalStatus.textContent = '';
+            convertPythonToFlowchart(mode);
+            const result = document.getElementById('python-conversion-status')?.textContent || '';
+            if (result.startsWith('✓')) closePythonImportModal();
+            else if (modalStatus) modalStatus.textContent = result || 'لم يُغيَّر المخطط.';
+        }
+
+        function loadSamplePythonCode(openInModal = false) {
+            const sample = `score = int(input("أدخل الدرجة: "))
+if score >= 50:
+    result = "ناجح"
+else:
+    result = "راسب"
+print(result)`;
+            document.getElementById('python-input-area').value = sample;
+            if (openInModal) {
+                const editor = document.getElementById('python-modal-input');
+                editor.value = sample;
+                updatePythonEditorView();
+                editor.focus();
+            }
+            showPythonConversionStatus('تم إدراج المثال. اضغط «إضافة مخطط جديد» لإضافته دون حذف الرسوم الحالية.');
+        }
+
+        function loadPythonLoopExample(type) {
+            const sample = type === 'for'
+                ? 'for x in range(1, 6):\n    print(x)\nprint("انتهى")'
+                : 'x = 1\nwhile x <= 3:\n    print(x)\n    x += 1\nprint("انتهى")';
+            document.getElementById('python-input-area').value = sample;
+            const input = document.getElementById('python-modal-input');
+            if (input) {
+                input.value = sample;
+                updatePythonEditorView();
+                input.focus();
+            }
+            const modalStatus = document.getElementById('python-modal-conversion-status');
+            if (modalStatus) modalStatus.textContent = '';
+            showPythonConversionStatus('اختر إضافة مخطط جديد لإدراج المثال دون حذف المخططات السابقة.');
+        }
+
+        // Multiple independent diagrams may occupy the same workspace.
+        // All bounds use world coordinates so placement is independent of zoom and pan.
+        function getWorkspaceBounds(nodes = state.nodes, includeOtherContent = true) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            function addRect(x, y, w, h) {
+                if (![x, y, w, h].every(Number.isFinite)) return;
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x + w);
+                maxY = Math.max(maxY, y + h);
+            }
+            nodes.forEach(n => {
+                addRect(n.x - 3, n.y - 3, n.w + 6, n.h + 6);
+                if (n.note?.trim()) {
+                    // Conservative envelope for labels even before their final font measures.
+                    addRect(n.x + (n.noteOffsetX ?? 185) - 10,
+                            n.y + (n.noteOffsetY ?? -10) - 10, 255, 135);
+                }
+            });
+            // Include routed merge corridors, which extend outside the nodes.
+            const includedIds = new Set(nodes.map(n => n.id));
+            state.edges.forEach(edge => {
+                if (!['return-right', 'loop-back'].includes(edge.routing) ||
+                    !includedIds.has(edge.from) || !includedIds.has(edge.to)) return;
+                const from = nodes.find(n => n.id === edge.from);
+                const to = nodes.find(n => n.id === edge.to);
+                if (!from || !to) return;
+                const fromY = from.y + from.h / 2;
+                const toY = to.y + to.h / 2;
+                const outerX = Math.max(from.x + from.w, to.x + to.w) + (edge.routing === 'loop-back' ? 115 : 155);
+                addRect(outerX - 5, Math.min(fromY, toY) - 5, 10, Math.abs(toY - fromY) + 10);
+            });
+            if (includeOtherContent) {
+                state.texts.forEach(t => addRect(t.x - 5, t.y - 5,
+                    Math.max(140, (t.text?.length || 1) * (t.fontSize || 18) * 0.75),
+                    Math.max(45, (t.fontSize || 18) * 2)));
+                state.drawings.forEach(d => {
+                    const half = (d.width || 4) / 2;
+                    (d.points || []).forEach(p => addRect(p.x - half, p.y - half, half * 2, half * 2));
+                });
+            }
+            return Number.isFinite(minX) ? {
+                minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY
+            } : null;
+        }
+
+        function focusOnDiagramBounds(bounds) {
+            if (!bounds) return;
+            const vw = canvasContainer.clientWidth || 900;
+            const vh = canvasContainer.clientHeight || 650;
+            const margin = 65;
+            const z = Math.min(1, (vw - margin * 2) / Math.max(1, bounds.width),
+                              (vh - margin * 2) / Math.max(1, bounds.height));
+            state.zoom = Math.max(0.25, z);
+            state.panX = vw / 2 - (bounds.minX + bounds.width / 2) * state.zoom;
+            state.panY = vh / 2 - (bounds.minY + bounds.height / 2) * state.zoom;
+            saveStateToActiveWorkspace();
+            applyViewportTransform();
+        }
+
+        function fitAllWorkspaceContent() {
+            const bounds = getWorkspaceBounds();
+            if (bounds) {
+                focusOnDiagramBounds(bounds);
+                commitProjectChange();
+            }
+        }
+
+        function showPythonConversionStatus(text, isError = false) {
+            const el = document.getElementById('python-conversion-status');
+            if (!el) return;
+            el.textContent = text;
+            el.classList.toggle('text-rose-300', isError);
+            el.classList.toggle('text-amber-300', !isError);
+        }
+
+        function finishPythonImport(previousNodeCount, previousBounds, mode) {
+            const generatedNodes = state.nodes.slice(previousNodeCount);
+            if (!generatedNodes.length) return false;
+            if (mode === 'append' && previousBounds) {
+                const bounds = getWorkspaceBounds(generatedNodes, false);
+                // Place to the right of *everything* in this workspace; do not collide
+                // with earlier shapes, notes, handwritten strokes or free text.
+                const dx = previousBounds.maxX + 180 - bounds.minX;
+                const dy = previousBounds.minY - bounds.minY;
+                generatedNodes.forEach(n => { n.x += dx; n.y += dy; });
+            }
+            selectedNodeId = selectedEdgeId = selectedTextId = null;
+            isAllSelected = false;
+            updateSelectAllBadge();
+            saveStateToActiveWorkspace();
+            updatePropertiesPanel();
+            render();
+            focusOnDiagramBounds(getWorkspaceBounds(generatedNodes, false));
+            commitProjectChange(); // Single undo step reverts the whole imported diagram.
+            persistProject();
+            showPythonConversionStatus(mode === 'append'
+                ? `✓ أُضيف مخطط جديد (${generatedNodes.length} أشكال) بجوار الموجود. استخدم «عرض الكل» لرؤية الجميع.`
+                : `✓ استُبدلت الأشكال بمخطط جديد (${generatedNodes.length} أشكال).`);
+            return true;
+        }
+
+        // Parse an indentation-based, explicit subset of Python into structured
+        // statements. Unlike line-by-line parsing, elif belongs to its parent if.
+        // Unsupported syntax is rejected rather than shown as a misleading graph.
+        function parsePythonFlowStatements(source) {
+            const lines = source.replace(/\r\n?/g, '\n').split('\n').map((raw, index) => {
+                const expanded = raw.replace(/\t/g, '    ');
+                return { indent: (expanded.match(/^ */) || [''])[0].length,
+                    text: expanded.trim(), number: index + 1 };
+            }).filter(line => line.text && !line.text.startsWith('#'));
+            if (!lines.length) throw new Error('لا توجد تعليمات قابلة للتحويل.');
+            if (lines.length > 500) throw new Error('الحد الأقصى 500 تعليمة في التحويل الواحد.');
+            let cursor = 0;
+            const fail = (line, message) => { throw new Error(`السطر ${line.number}: ${message}`); };
+            const isClause = t => /^(elif\b|else\s*:)/.test(t);
+
+            function parseBody(header, loopDepth) {
+                if (cursor >= lines.length || lines[cursor].indent <= header.indent) {
+                    fail(header, 'تتطلب هذه البنية تعليمة واحدة على الأقل داخل كتلتها بمسافة بادئة.');
+                }
+                return parseBlock(lines[cursor].indent, loopDepth);
+            }
+            function parseBlock(indent, loopDepth) {
+                const statements = [];
+                while (cursor < lines.length) {
+                    const line = lines[cursor];
+                    if (line.indent < indent) break;
+                    if (line.indent > indent) fail(line, 'المسافة البادئة غير متوقعة.');
+                    if (isClause(line.text)) break;
+                    // Statically unreachable after an unconditional loop transfer.
+                    const last = statements[statements.length - 1];
+                    if (last && (last.kind === 'break' || last.kind === 'continue')) {
+                        fail(line, 'تعليمة غير قابلة للوصول بعد break أو continue في الكتلة نفسها.');
+                    }
+                    if (/^if\b/.test(line.text)) {
+                        const match = /^if\s+(.+):$/.exec(line.text);
+                        if (!match) fail(line, 'صياغة if غير صحيحة (تحقق من النقطتين :).');
+                        cursor++;
+                        const clauses = [{condition: match[1], body: parseBody(line, loopDepth)}];
+                        let alternate = null;
+                        while (cursor < lines.length && lines[cursor].indent === indent) {
+                            const next = lines[cursor];
+                            if (/^elif\b/.test(next.text)) {
+                                const elif = /^elif\s+(.+):$/.exec(next.text);
+                                if (!elif) fail(next, 'صياغة elif غير صحيحة.');
+                                cursor++;
+                                clauses.push({condition: elif[1], body: parseBody(next, loopDepth)});
+                            } else if (/^else\s*:/.test(next.text)) {
+                                if (next.text !== 'else:') fail(next, 'صياغة else غير صحيحة.');
+                                cursor++;
+                                alternate = parseBody(next, loopDepth);
+                                break;
+                            } else break;
+                        }
+                        statements.push({kind: 'if', clauses, alternate});
+                        continue;
+                    }
+                    if (/^(for|while)\b/.test(line.text)) {
+                        const isFor = /^for\b/.test(line.text);
+                        const match = isFor
+                            ? /^for\s+([A-Za-z_]\w*)\s+in\s+(.+):$/.exec(line.text)
+                            : /^while\s+(.+):$/.exec(line.text);
+                        if (!match) fail(line, isFor
+                            ? 'صياغة for غير مدعومة: استخدم متغيرًا واحدًا مع in وتعبيرًا متبوعًا بنقطتين (:).'
+                            : 'صياغة while غير صحيحة؛ يجب وجود شرط ثم (:).');
+                        const condition = isFor ? match[2].trim() : match[1].trim();
+                        if (!condition) fail(line, 'لا يجوز ترك شرط الحلقة أو مصدر عناصرها فارغًا.');
+                        cursor++;
+                        const body = parseBody(line, loopDepth + 1);
+                        let alternate = null;
+                        if (cursor < lines.length && lines[cursor].indent === indent &&
+                            /^else\b/.test(lines[cursor].text)) {
+                            const next = lines[cursor];
+                            if (next.text !== 'else:') fail(next, 'صياغة else غير صحيحة.');
+                            cursor++;
+                            // Python's loop-else is outside the loop for break/continue purposes.
+                            alternate = parseBody(next, loopDepth);
+                        }
+                        statements.push({kind: 'loop', loopType: isFor ? 'for' : 'while',
+                            variable: isFor ? match[1] : null, condition, body, alternate});
+                        continue;
+                    }
+                    if (/^(break|continue)\b/.test(line.text)) {
+                        if (!/^(break|continue)$/.test(line.text)) {
+                            fail(line, 'اكتب break أو continue دون معاملات إضافية.');
+                        }
+                        if (loopDepth < 1) {
+                            fail(line, `${line.text} صالحة فقط داخل حلقة for أو while.`);
+                        }
+                        statements.push({kind: line.text});
+                        cursor++;
+                        continue;
+                    }
+                    if (/^(def|async|class|try|except|finally|with|match|case)\b/.test(line.text)) {
+                        fail(line, 'هذه البنية غير مدعومة بعد؛ لم يُغيَّر المشروع.');
+                    }
+                    if (/^(return|raise|yield|import|from)\b/.test(line.text)) {
+                        fail(line, 'هذه التعليمة غير مدعومة بعد في التحويل إلى مخطط.');
+                    }
+                    if (line.text.endsWith(':') || /^['"]{3}/.test(line.text)) {
+                        fail(line, 'بنية برمجية متعددة الأسطر أو غير مدعومة.');
+                    }
+                    if (/^(elif\b|else\b)/.test(line.text)) fail(line, 'elif أو else بلا بنية مقابلة.');
+                    statements.push({kind: 'statement', text: line.text});
+                    cursor++;
+                }
+                return statements;
+            }
+            if (lines[0].indent !== 0) fail(lines[0], 'يجب أن يبدأ السطر الأول بلا مسافة بادئة.');
+            const result = parseBlock(0, 0);
+            if (cursor < lines.length) {
+                fail(lines[cursor], isClause(lines[cursor].text)
+                    ? 'وجد elif أو else خارج بنية if أو حلقة صحيحة.' : 'مسافة بادئة غير صالحة.');
+            }
+            return result;
+        }
+
+        // Split print arguments at top-level commas only. Commas within quoted
+        // strings, nested calls, lists, or dictionaries are preserved intact.
+        function splitPythonPrintArguments(source) {
+            const parts = [];
+            let quote = null, escaped = false, nesting = 0, start = 0;
+            for (let i = 0; i < source.length; i++) {
+                const char = source[i];
+                if (quote) {
+                    if (escaped) escaped = false;
+                    else if (char === '\\') escaped = true;
+                    else if (char === quote) quote = null;
+                } else if (char === '"' || char === "'") {
+                    quote = char;
+                } else if (char === '(' || char === '[' || char === '{') {
+                    nesting++;
+                } else if (char === ')' || char === ']' || char === '}') {
+                    nesting = Math.max(0, nesting - 1);
+                } else if (char === ',' && nesting === 0) {
+                    parts.push(source.slice(start, i).trim());
+                    start = i + 1;
+                }
+            }
+            parts.push(source.slice(start).trim());
+            return parts;
+        }
+
+        function flowchartStatementNode(text) {
+            let type = 'process';
+            let label = text;
+            // Check print before input: a print containing a quoted "input(...)"
+            // is still output, not a request for input.
+            if (/^print\s*\(/.test(text) && /\)\s*$/.test(text)) {
+                type = 'io';
+                const inside = text.replace(/^print\s*\(/, '').replace(/\)\s*$/, '');
+                const args = splitPythonPrintArguments(inside);
+                if (!inside.trim()) {
+                    label = 'إخراج (عرض):\nسطر فارغ';
+                } else if (args.length === 1 && /^(["'])(?:[^\\]|\\.)*\1$/.test(args[0])) {
+                    // A single literal is displayed as the visible string.
+                    label = `إخراج (عرض):\n${args[0].slice(1, -1)}`;
+                } else {
+                    // Label each argument by its role. This avoids confusing
+                    // bidirectional punctuation between Arabic, Python quotes,
+                    // commas and Latin identifiers. Preserve expressions
+                    // without pretending to execute or evaluate variables.
+                    const describeArg = arg => {
+                        if (/^(["'])(?:[^\\]|\\.)*\1$/.test(arg)) return `نص: ${arg.slice(1, -1)}`;
+                        if (/^[a-zA-Z_]\w*$/.test(arg)) return `متغير: ${arg}`;
+                        if (/^-?\d+(?:\.\d+)?$/.test(arg)) return `قيمة: ${arg}`;
+                        return `تعبير: ${arg}`;
+                    };
+                    label = `إخراج (عرض):\n${args.map(describeArg).join('\n')}`;
+                }
+            } else if (/\binput\s*\(/.test(text)) {
+                type = 'io';
+                const varMatch = text.match(/^([a-zA-Z_]\w*)\s*=/);
+                const promptMatch = text.match(/input\s*\(\s*["']([^"']*)["']\s*\)/);
+                if (promptMatch && varMatch) label = `إدخال ${varMatch[1]}\n(${promptMatch[1]})`;
+                else if (varMatch) label = `إدخال ${varMatch[1]}`;
+                else label = `إدخال: ${text}`;
+            }
+            return {type, label};
+        }
+
+        function flowchartImportNodeSize(type, label) {
+            if (type !== 'io') return null;
+            const lines = label.split('\n');
+            // Wider I/O blocks help long Arabic output labels remain legible.
+            const maxLine = Math.max(...lines.map(line => [...line].length));
+            const width = Math.max(180, Math.min(350, Math.ceil((maxLine * 8 + 44) / 10) * 10));
+            const wrappedLines = lines.reduce((sum, line) =>
+                sum + Math.max(1, Math.ceil(([...line].length * 8) / Math.max(80, width - 35))), 0);
+            const height = Math.max(64, wrappedLines * 23 + 18);
+            return {width, height};
+        }
+
+        // A single vertical decision spine and an output column ensure that
+        // every elif uses the preceding decision's NO edge, and that all YES
+        // branches reconverge on the next instruction or End.
+        // Return separate normal, break, and continue exits. A break never
+        // travels through a loop's else branch; a continue targets its loop header.
+        // Controls originating in nested if branches propagate to their nearest loop.
+        function drawPythonFlowStatements(statements, entrances, mainX, firstY) {
+            const addEdge = (previous, to) => {
+                state.edges.push({id: 'e' + edgeCounter++, from: previous.id, to,
+                    label: previous.label || '', ...(previous.routing ? {routing: previous.routing} : {})});
+            };
+            let tails = entrances;
+            let breaks = [], continues = [];
+            let y = firstY;
+            for (const item of statements) {
+                if (item.kind === 'statement') {
+                    const {type, label} = flowchartStatementNode(item.text);
+                    const size = flowchartImportNodeSize(type, label);
+                    const w = size ? size.width : 140;
+                    const id = createNode(type, mainX - w / 2, y, label, COLORS[type]);
+                    if (size) {
+                        const importedNode = state.nodes.find(n => n.id === id);
+                        importedNode.w = size.width;
+                        importedNode.h = size.height;
+                    }
+                    tails.forEach(prev => addEdge(prev, id));
+                    tails = [{id, label: ''}];
+                    y += Math.max(100, (size?.height || 48) + 38);
+                    continue;
+                }
+                if (item.kind === 'break' || item.kind === 'continue') {
+                    const isBreak = item.kind === 'break';
+                    const id = createNode('process', mainX - 86, y,
+                        isBreak ? 'break\nخروج من الحلقة' : 'continue\nالدورة التالية', COLORS.process);
+                    const n = state.nodes.find(node => node.id === id);
+                    n.w = 172; n.h = 65;
+                    tails.forEach(prev => addEdge(prev, id));
+                    (isBreak ? breaks : continues).push({id, label: '', routing: 'return-right'});
+                    tails = [];
+                    y += 110;
+                    continue;
+                }
+                if (item.kind === 'if') {
+                    const returnTails = [];
+                    let previousNo = null;
+                    for (const clause of item.clauses) {
+                        const decY = y;
+                        const decId = createNode('decision', mainX - 85, decY,
+                            `قرار:\n${clause.condition}`, COLORS.decision);
+                        (previousNo ? [previousNo] : tails).forEach(prev => addEdge(prev, decId));
+                        const branch = drawPythonFlowStatements(clause.body,
+                            [{id: decId, label: 'نعم'}], mainX + 325, decY + 130);
+                        returnTails.push(...branch.tails.map(t => ({...t, routing: 'return-right'})));
+                        breaks.push(...branch.breaks);
+                        continues.push(...branch.continues);
+                        previousNo = {id: decId, label: 'لا'};
+                        y = Math.max(decY + 210, branch.nextY + 36);
+                    }
+                    if (item.alternate !== null) {
+                        const branch = drawPythonFlowStatements(item.alternate,
+                            [previousNo], mainX + 325, y + 6);
+                        returnTails.push(...branch.tails.map(t => ({...t, routing: 'return-right'})));
+                        breaks.push(...branch.breaks);
+                        continues.push(...branch.continues);
+                        y = Math.max(y + 110, branch.nextY + 25);
+                    } else {
+                        returnTails.push(previousNo);
+                    }
+                    tails = returnTails;
+                    y += 45;
+                    continue;
+                }
+                if (item.kind === 'loop') {
+                    // A for-loop binds a new value from its iterator on each YES
+                    // decision; unlike while, it is not merely a boolean expression.
+                    const headLabel = item.loopType === 'for'
+                        ? `عنصر تالٍ للمتغير ${item.variable}؟\nمن: ${item.condition}`
+                        : `شرط while:\n${item.condition}`;
+                    const loopHeader = createNode('decision', mainX - 100, y,
+                        headLabel, COLORS.decision);
+                    const h = state.nodes.find(n => n.id === loopHeader);
+                    h.w = Math.max(200, Math.min(300, headLabel.length * 3 + 100));
+                    h.x = mainX - h.w / 2;
+                    h.h = 110;
+                    tails.forEach(prev => addEdge(prev, loopHeader));
+                    const branch = drawPythonFlowStatements(item.body,
+                        [{id: loopHeader, label: 'نعم'}], mainX + 345, y + 155);
+                    // Normal iteration and continue both return to this header.
+                    // These arrows must not accidentally fall through to the next step.
+                    [...branch.tails, ...branch.continues].forEach(t => addEdge({
+                        ...t, label: t.label || '', routing: 'loop-back'
+                    }, loopHeader));
+                    // NO represents exhausted iteration / false while condition.
+                    let normalExits = [{id: loopHeader, label: 'لا'}];
+                    const loopBreaks = branch.breaks.map(t => ({
+                        ...t, label: '', routing: 'return-right'
+                    }));
+                    y = Math.max(y + 250, branch.nextY + 60);
+                    if (item.alternate !== null) {
+                        const elseBranch = drawPythonFlowStatements(item.alternate,
+                            normalExits, mainX + 345, y + 16);
+                        normalExits = elseBranch.tails.map(t => ({...t, routing: 'return-right'}));
+                        // break/continue in a loop-else belong to any *outer* loop.
+                        breaks.push(...elseBranch.breaks);
+                        continues.push(...elseBranch.continues);
+                        y = Math.max(y + 130, elseBranch.nextY + 36);
+                    }
+                    tails = [...normalExits, ...loopBreaks];
+                    y += 50;
+                }
+            }
+            return {tails, breaks, continues, nextY: y};
+        }
+
+        // Parse Python Code (Standard Python or Graphviz code) into Flowchart
+        function convertPythonToFlowchart(mode = 'append') {
+            const rawCode = document.getElementById('python-input-area').value;
+            if (!rawCode.trim()) {
+                showPythonConversionStatus('الصق كود بايثون أولًا، ثم اختر إضافة مخطط جديد.', true);
+                return;
+            }
+            if (rawCode.length > 50000) {
+                showPythonConversionStatus('الكود طويل جدًا؛ الحد المسموح 50,000 حرف.', true);
+                return;
+            }
+            if (mode !== 'append' && mode !== 'replace') return;
+            const isGraphviz = rawCode.includes('dot.node(') && rawCode.includes('dot.edge(');
+            if (isGraphviz && !/dot\.node\(\s*'[^']+'\s*,\s*'[^']*'/.test(rawCode)) {
+                showPythonConversionStatus('تعذر التعرف على عقد Graphviz؛ لم تُعدَّل الرسوم الحالية.', true);
+                return;
+            }
+            if (!isGraphviz && !rawCode.split('\n').some(line => {
+                const t = line.trim();
+                return t && !t.startsWith('#') && !t.startsWith('"""') && !t.startsWith(String.fromCharCode(39, 39, 39));
+            })) {
+                showPythonConversionStatus('لا توجد تعليمات قابلة للتحويل في النص المدخل.', true);
+                return;
+            }
+            let structuredStatements = null;
+            if (!isGraphviz) {
+                try {
+                    structuredStatements = parsePythonFlowStatements(rawCode);
+                } catch (err) {
+                    showPythonConversionStatus(`تعذّر التحويل: ${err.message}`, true);
+                    return;
+                }
+            }
+            if (mode === 'replace' && (state.nodes.length || state.edges.length) &&
+                !confirm('سيُحذف جميع الأشكال والأسهم الحالية في هذه المنطقة ويحل المخطط الجديد محلها. يمكن التراجع عن ذلك. هل تريد المتابعة؟')) {
+                return;
+            }
+            commitProjectChange();
+            const previousBounds = mode === 'append' ? getWorkspaceBounds() : null;
+            const previousSnapshot = snapshotProject();
+            if (mode === 'replace') {
+                state.nodes.length = 0;
+                state.edges.length = 0;
+                // Preserve drawings and floating explanatory text, as the action
+                // explicitly replaces flowcharts rather than unrelated annotations.
+            }
+            const previousNodeCount = state.nodes.length;
+            const centerX = Math.max(320, Math.floor((canvasContainer.clientWidth || 800) / 2));
+
+            // Case 1: Check if pasted code is Graphviz Python code (dot.node / dot.edge)
+            if (isGraphviz) {
+                const nodeRegex = /dot\.node\(\s*'([^']+)'\s*,\s*'([^']*)'(?:.*?shape='([^']+)')?(?:.*?fillcolor='([^']+)')?/g;
+                const edgeRegex = /dot\.edge\(\s*'([^']+)'\s*,\s*'([^']+)'(?:.*?label='([^']*)')?/g;
+                const idMap = {};
+                let yPos = 45;
+                let match;
+                while ((match = nodeRegex.exec(rawCode)) !== null) {
+                    const [_, origId, rawText, shape, color] = match;
+                    const text = rawText.replace(/\\n/g, '\n');
+                    let type = 'process';
+                    if (shape === 'parallelogram') type = 'io';
+                    else if (shape === 'diamond') type = 'decision';
+                    else if (rawText.includes('البداية') || rawText.includes('النهاية') || rawText.toLowerCase().includes('start') || rawText.toLowerCase().includes('end')) type = 'start';
+
+                    const w = type === 'decision' ? 170 : (type === 'io' ? 160 : 140);
+                    const newId = createNode(type, centerX - w / 2, yPos, text, color || COLORS[type]);
+                    idMap[origId] = newId;
+                    yPos += (type === 'decision' ? 125 : 85);
+                }
+                while ((match = edgeRegex.exec(rawCode)) !== null) {
+                    const [_, fromId, toId, lbl] = match;
+                    if (idMap[fromId] && idMap[toId]) {
+                        state.edges.push({ id: 'e' + edgeCounter++, from: idMap[fromId], to: idMap[toId], label: lbl || '' });
+                    }
+                }
+                if (!finishPythonImport(previousNodeCount, previousBounds, mode)) {
+                    applyProjectSnapshot(previousSnapshot);
+                    showPythonConversionStatus('لم تُعثر على أشكال Graphviz قابلة للتحويل؛ بقيت الرسوم محفوظة.', true);
+                }
+                return;
+            }
+
+            // Case 2: structured Python if / elif / else, for / while, and basic statements.
+            // Validation happens before mutation, preserving existing diagrams on failure.
+            const startId = createNode('start', centerX - 70, 35, 'البداية', COLORS.start);
+            const flow = drawPythonFlowStatements(structuredStatements,
+                [{id: startId, label: ''}], centerX, 135);
+            if (flow.breaks.length || flow.continues.length) {
+                applyProjectSnapshot(previousSnapshot);
+                showPythonConversionStatus('تعذر تحديد الحلقة المستهدفة في تعليمة break أو continue.', true);
+                return;
+            }
+            const endId = createNode('start', centerX - 70, flow.nextY + 15, 'النهاية', COLORS.start);
+            flow.tails.forEach(previous => {
+                state.edges.push({id: 'e' + edgeCounter++, from: previous.id,
+                    to: endId, label: previous.label || '',
+                    ...(previous.routing ? {routing: previous.routing} : {})});
+            });
+
+            finishPythonImport(previousNodeCount, previousBounds, mode);
+        }
+
+
+        // Flowchart analyzer: read-only, supports multiple independent diagrams
+        // in the same workspace. Deliberately avoids interpreting arbitrary
+        // process labels as executable Python.
+        let flowCheckLastResults = null;
+
+        function classifyFlowDecisionLabel(label) {
+            const normalized = String(label || '').trim().toLowerCase()
+                .replace(/[\u064b-\u065f]/g, '');
+            if (/^(نعم|صح|صحيح)(?:\s|$|\/|\()/.test(normalized) ||
+                /^(t|true|yes)(?:\s|$|\/|\()/.test(normalized)) return 'yes';
+            if (/^(لا|خطأ|خاطئ)(?:\s|$|\/|\()/.test(normalized) ||
+                /^(f|false|no)(?:\s|$|\/|\()/.test(normalized)) return 'no';
+            return null;
+        }
+
+        function analyzeActiveFlowchart() {
+            const nodes = state.nodes.slice();
+            const edges = state.edges.slice();
+            const byId = new Map(nodes.map(n => [n.id, n]));
+            const outgoing = new Map(nodes.map(n => [n.id, []]));
+            const incoming = new Map(nodes.map(n => [n.id, []]));
+            const undirected = new Map(nodes.map(n => [n.id, new Set()]));
+            const problems = [];
+            const add = (severity, code, message, target = null, detail = '') => {
+                problems.push({severity, code, message, target, detail});
+            };
+            const labelFor = node => String(node.text || 'شكل بلا نص').replace(/\s+/g, ' ').slice(0, 55);
+            const nodeTarget = id => ({type: 'node', id});
+            for (const edge of edges) {
+                if (!byId.has(edge.from) || !byId.has(edge.to)) {
+                    add('error','broken-link', 'سهم يشير إلى شكل غير موجود', {type:'edge', id:edge.id});
+                    continue;
+                }
+                outgoing.get(edge.from).push(edge);
+                incoming.get(edge.to).push(edge);
+                undirected.get(edge.from).add(edge.to);
+                undirected.get(edge.to).add(edge.from);
+                if (edge.from === edge.to && byId.get(edge.from).type !== 'decision') {
+                    add('warning','self-loop', 'سهم يعود إلى الشكل نفسه', nodeTarget(edge.from), 'تأكد أن تكرار هذا الشكل مقصود.');
+                }
+            }
+            if (!nodes.length) {
+                add('warning','empty', 'منطقة العمل لا تحتوي على أشكال لفحصها.', null, 'أضف شكل بداية ثم صِل به خطوات الخوارزمية.');
+                return {problems, nodes: 0, edges: 0, diagrams: 0};
+            }
+
+            // Connected components (ignoring arrow orientation) are independent
+            // diagrams. Multiple starts/ends across different components are valid.
+            const seenComponent = new Set();
+            const components = [];
+            for (const n of nodes) {
+                if (seenComponent.has(n.id)) continue;
+                const comp = [], stack = [n.id];
+                seenComponent.add(n.id);
+                while (stack.length) {
+                    const curr = stack.pop();
+                    comp.push(curr);
+                    for (const id of undirected.get(curr)) {
+                        if (!seenComponent.has(id)) {
+                            seenComponent.add(id); stack.push(id);
+                        }
+                    }
+                }
+                components.push(comp);
+            }
+            const starts = nodes.filter(n => n.type === 'start' && incoming.get(n.id).length === 0 && outgoing.get(n.id).length > 0);
+            const ends = nodes.filter(n => n.type === 'start' && outgoing.get(n.id).length === 0 && incoming.get(n.id).length > 0);
+            const startIds = new Set(starts.map(n => n.id));
+            const endIds = new Set(ends.map(n => n.id));
+
+            for (const component of components) {
+                const countStart = component.filter(id => startIds.has(id)).length;
+                const countEnd = component.filter(id => endIds.has(id)).length;
+                const anchor = nodeTarget(component[0]);
+                if (!countStart) {
+                    add('error','no-start', 'مخطط بلا بداية صالحة', anchor,
+                        'استخدم شكل بداية (بيضاوي) بلا سهم وارد، مع سهم صادر إلى الخطوة الأولى.');
+                }
+                if (!countEnd) {
+                    add('error','no-end', 'مخطط بلا نهاية صالحة', anchor,
+                        'استخدم شكل نهاية (بيضاوي) يستقبل سهمًا ولا يخرج منه سهم.');
+                }
+                if (countStart > 1) {
+                    add('warning','multi-start', 'أكثر من نقطة بداية داخل رسم واحد متصل', anchor,
+                        'قد يكون ذلك مقصودًا، لكن المخطط التعليمي المعتاد له بداية واحدة.');
+                }
+            }
+
+            const edgeKeys = new Set();
+            for (const edge of edges) {
+                const key = JSON.stringify([edge.from, edge.to, edge.label || '']);
+                if (edgeKeys.has(key)) {
+                    add('warning','duplicate-arrow', 'سهم مكرر بين الشكلين بالتسمية نفسها',
+                        {type:'edge', id:edge.id});
+                }
+                edgeKeys.add(key);
+            }
+            for (const node of nodes) {
+                const ins = incoming.get(node.id);
+                const outs = outgoing.get(node.id);
+                if (!ins.length && !outs.length) {
+                    add('error','isolated', `شكل غير متصل: «${labelFor(node)}»`, nodeTarget(node.id),
+                        'اربط الشكل بمسار البداية والنهاية أو احذفه إن لم يكن جزءًا من الخوارزمية.');
+                }
+                if (node.type === 'start') {
+                    if (ins.length && outs.length) {
+                        add('error','terminal-middle', 'شكل البداية/النهاية موجود وسط المسار', nodeTarget(node.id),
+                            'حدد ما إذا كان بداية بلا أسهم واردة أم نهاية بلا أسهم صادرة.');
+                    }
+                    if (outs.length > 1) {
+                        add('warning','start-many-arrows','شكل البداية يصدر منه أكثر من سهم',nodeTarget(node.id));
+                    }
+                } else if (!ins.length && outs.length) {
+                    add('error','missing-input', `لا يوجد مسار وارد إلى «${labelFor(node)}»`,nodeTarget(node.id));
+                }
+                if (node.type === 'decision') {
+                    if (outs.length !== 2) {
+                        add('error','decision-branch-count',
+                            `القرار «${labelFor(node)}» يحتاج فرعين؛ الموجود ${outs.length}`,
+                            nodeTarget(node.id),'ارسم سهم «نعم» وسهم «لا» من القرار.');
+                    } else {
+                        const kinds = outs.map(e => classifyFlowDecisionLabel(e.label));
+                        if (!kinds.includes('yes') || !kinds.includes('no')) {
+                            add('warning','decision-branch-labels',
+                                `تسمية فرعي القرار «${labelFor(node)}» غير مكتملة أو متكررة`,
+                                nodeTarget(node.id),'اجعل أحد السهمين «نعم» والآخر «لا» (أو T / F).');
+                        }
+                    }
+                } else if (node.type !== 'start' && outs.length > 1) {
+                    add('warning','multi-output', `الشكل «${labelFor(node)}» يتفرع دون رمز قرار`,
+                        nodeTarget(node.id),'إذا كان هذا تفرعًا منطقيًا، استخدم شكل القرار.');
+                }
+                if (node.type !== 'start' && !outs.length && ins.length) {
+                    add('error','dead-end', `المسار يتوقف عند «${labelFor(node)}» دون نهاية`,
+                        nodeTarget(node.id),'أضف سهمًا يتجه إلى الشكل التالي أو إلى النهاية.');
+                }
+            }
+
+            // Forward and reverse graph traversals distinguish unreachable parts
+            // from paths that can never reach any explicit end.
+            function traverse(initial, next) {
+                const visited = new Set(initial), queue = [...initial];
+                for (let i=0; i<queue.length; ++i) {
+                    for (const id of next(queue[i])) {
+                        if (visited.has(id)) continue;
+                        visited.add(id); queue.push(id);
+                    }
+                }
+                return visited;
+            }
+            const reachable = traverse(starts.map(n => n.id), id => outgoing.get(id).map(e => e.to));
+            const canEnd = traverse(ends.map(n => n.id), id => incoming.get(id).map(e => e.from));
+            for (const node of nodes) {
+                if (!reachable.has(node.id) && incoming.get(node.id).length > 0) {
+                    add('error','unreachable', `الشكل «${labelFor(node)}» لا يمكن الوصول إليه من أي بداية`,
+                        nodeTarget(node.id));
+                }
+            }
+
+            // Tarjan's algorithm: report genuine closed cycles rather than
+            // treating every loop as an error. A valid loop needs an exit route.
+            let counter=0;
+            const index=new Map(), low=new Map(), stack=[], onStack=new Set();
+            const cycles=[];
+            function strongconnect(id) {
+                index.set(id,counter); low.set(id,counter); counter++;
+                stack.push(id); onStack.add(id);
+                for (const e of outgoing.get(id)) {
+                    const next=e.to;
+                    if (!index.has(next)) { strongconnect(next); low.set(id,Math.min(low.get(id),low.get(next))); }
+                    else if (onStack.has(next)) low.set(id,Math.min(low.get(id),index.get(next)));
+                }
+                if (low.get(id) === index.get(id)) {
+                    const comp=[]; let next;
+                    do { next=stack.pop(); onStack.delete(next); comp.push(next); } while (next!==id);
+                    if (comp.length>1 || outgoing.get(id).some(e=>e.to===id)) cycles.push(comp);
+                }
+            }
+            for (const node of nodes) if (!index.has(node.id)) strongconnect(node.id);
+            for (const cycle of cycles) {
+                const group=new Set(cycle);
+                const hasExit=cycle.some(id=>outgoing.get(id).some(e=>!group.has(e.to)));
+                if (!hasExit) {
+                    add('warning','closed-cycle', 'حلقة مغلقة لا يوجد منها مسار خروج',
+                        nodeTarget(cycle[0]),
+                        'قد تكون حلقة لا نهائية مقصودة؛ إذا لم تكن كذلك فأضف مسار انتهاء واضحًا.');
+                }
+            }
+            const reportedComponents=new Set();
+            for (const component of components) {
+                // Warn only once per diagram, not for every loop-body node.
+                const key=component[0];
+                if (reportedComponents.has(key) || component.every(id=>!reachable.has(id)) ||
+                    component.every(id=>canEnd.has(id))) continue;
+                if (component.some(id=>reachable.has(id) && !canEnd.has(id)) &&
+                    !problems.some(p=>p.code==='no-end' && p.target?.id===key)) {
+                    add('warning','path-no-end', 'بعض المسارات قد لا تصل إلى النهاية',
+                        nodeTarget(component.find(id=>reachable.has(id) && !canEnd.has(id))),
+                        'راجع أسهم الرجوع أو المسارات المغلقة. لا يعني ذلك بالضرورة وجود خطأ في برنامج يحتوي حلقة لا نهائية مقصودة.');
+                }
+                reportedComponents.add(key);
+            }
+            return {problems, nodes:nodes.length, edges:edges.length, diagrams:components.length};
+        }
+
+        function renderFlowValidationResults(result) {
+            const summary=document.getElementById('flow-check-summary');
+            const list=document.getElementById('flow-check-list');
+            const scope=document.getElementById('flow-check-scope');
+            const ws=workspaces.find(w=>w.id===activeWorkspaceId);
+            scope.textContent = `منطقة العمل: ${ws ? ws.name : ''} — ${result.diagrams} رسم/مكوّن — ${result.nodes} شكل — ${result.edges} سهم`;
+            const errors=result.problems.filter(p=>p.severity==='error').length;
+            const warnings=result.problems.filter(p=>p.severity==='warning').length;
+            summary.className = `text-sm font-semibold ${errors ? 'flow-check-error' : warnings ? 'flow-check-warning' : 'flow-check-good'}`;
+            summary.textContent = errors ? `اكتُشف ${errors} خطأ بنيوي و${warnings} تنبيه.` :
+                warnings ? `لا توجد أخطاء بنيوية مؤكدة؛ يوجد ${warnings} تنبيهًا للمراجعة.` :
+                '✓ لم يكشف الفحص عن أخطاء بنيوية في منطقة العمل.';
+            list.replaceChildren();
+            if (!result.problems.length) {
+                const p=document.createElement('p');
+                p.textContent='المخطط متصل ببدايات ونهايات، وفروع القرارات مكتملة من حيث البنية. لا يشمل الفحص صحة تنفيذ العمليات الحسابية.';
+                p.className='text-sm text-green-800 py-4';
+                list.appendChild(p);
+            }
+            for (const issue of result.problems.slice(0, 150)) {
+                const row=document.createElement(issue.target ? 'button' : 'div');
+                if (issue.target) {
+                    row.type='button';
+                    row.dataset.hasTarget='true';
+                    row.addEventListener('click',()=> focusFlowValidationTarget(issue.target));
+                    row.title='اضغط للانتقال إلى العنصر المتأثر';
+                }
+                row.className='flow-check-item';
+                row.setAttribute('role','listitem');
+                const icon=document.createElement('span');
+                icon.className=issue.severity==='error' ? 'flow-check-error' : 'flow-check-warning';
+                icon.textContent=issue.severity==='error' ? '✕' : '!';
+                icon.setAttribute('aria-hidden','true');
+                const details=document.createElement('div');
+                const headline=document.createElement('div');
+                headline.className='text-sm font-semibold text-slate-800';
+                headline.textContent=issue.message;
+                details.appendChild(headline);
+                if (issue.detail) {
+                    const explanation=document.createElement('p');
+                    explanation.className='text-xs text-slate-500 mt-1';
+                    explanation.textContent=issue.detail;
+                    details.appendChild(explanation);
+                }
+                row.append(icon,details);
+                list.appendChild(row);
+            }
+            if (result.problems.length>150) {
+                const p=document.createElement('p');
+                p.className='text-xs text-slate-500';
+                p.textContent=`عرض أول 150 مشكلة من ${result.problems.length}.`;
+                list.appendChild(p);
+            }
+        }
+
+        function rerunFlowValidation() {
+            flowCheckLastResults=analyzeActiveFlowchart();
+            renderFlowValidationResults(flowCheckLastResults);
+            return flowCheckLastResults;
+        }
+        function openFlowValidation() {
+            const modal=document.getElementById('flow-check-modal');
+            modal.classList.remove('hidden');
+            rerunFlowValidation();
+            modal.querySelector('button[aria-label="إغلاق الفحص"]').focus();
+        }
+        function closeFlowValidation() {
+            document.getElementById('flow-check-modal').classList.add('hidden');
+        }
+        function focusFlowValidationTarget(target) {
+            closeFlowValidation();
+            let node=null;
+            setMode('select');
+            if (target.type==='node') {
+                node=state.nodes.find(n=>n.id===target.id);
+                if (node) selectNode(node.id);
+            } else if (target.type==='edge') {
+                const edge=state.edges.find(e=>e.id===target.id);
+                if (edge) {
+                    selectEdge(edge.id);
+                    node=state.nodes.find(n=>n.id===edge.from);
+                }
+            }
+            if (!node) {render();return;}
+            const rect=canvasContainer.getBoundingClientRect();
+            state.panX=rect.width/2 - (node.x+node.w/2)*state.zoom;
+            state.panY=rect.height/2 - (node.y+node.h/2)*state.zoom;
+            applyViewportTransform();
+            render();
+        }
+
+        window.onload = () => {
+            init();
+            const pythonModalInput = document.getElementById('python-modal-input');
+            if (pythonModalInput) {
+                pythonModalInput.addEventListener('input', updatePythonEditorView);
+                pythonModalInput.addEventListener('scroll', updatePythonEditorView);
+                ['click', 'keyup', 'select'].forEach(name => pythonModalInput.addEventListener(name, updatePythonEditorCaretStatus));
+                pythonModalInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Tab') {
+                        event.preventDefault();
+                        const start = pythonModalInput.selectionStart;
+                        const end = pythonModalInput.selectionEnd;
+                        const value = pythonModalInput.value;
+                        pythonModalInput.value = value.slice(0, start) + '    ' + value.slice(end);
+                        pythonModalInput.selectionStart = pythonModalInput.selectionEnd = start + 4;
+                        updatePythonEditorView();
+                    }
+                });
+            }
+            document.getElementById('python-import-modal')?.addEventListener('click', (event) => {
+                if (event.target?.id === 'python-import-modal') closePythonImportModal();
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    const flowModal=document.getElementById('flow-check-modal');
+                    if (flowModal && !flowModal.classList.contains('hidden')) {closeFlowValidation();return;}
+                }
+                if (event.key === 'Escape') {
+                    const modal = document.getElementById('python-import-modal');
+                    if (modal && !modal.classList.contains('hidden')) closePythonImportModal();
+                }
+            });
+            updatePythonEditorView();
+        };
+    </script>
+</body>
+</html>
