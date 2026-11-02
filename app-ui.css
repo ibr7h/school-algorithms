@@ -57,3 +57,10 @@
  #simulation-panel{touch-action:pan-y!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
  #simulation-panel pre{touch-action:pan-y!important;}
 }
+
+/* Stable pointer-captured gestures, with native actions inside the tools. */
+@media (pointer:coarse){
+ #canvas-container{touch-action:none!important;}
+ #canvas-toolbar,#canvas-toolbar button,#simulation-panel,#simulation-panel button,
+ #simulation-panel input,#simulation-panel select {touch-action:manipulation!important;}
+}
