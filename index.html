@@ -3947,11 +3947,20 @@ print(result)`;
                 clientX:touch.clientX,clientY:touch.clientY,button:0,buttons:type==='mouseup'?0:1});
             (target||window).dispatchEvent(mouse);
         }
+        // Buttons and form controls are descendants of the drawing canvas. Never
+        // cancel their native touch events: cancelling touchstart/touchend stops
+        // iOS Safari from dispatching click, including on the simulation panel.
+        function isCanvasInteractiveControl(target) {
+            return !!(target && target.closest && target.closest(
+                '#canvas-toolbar, #simulation-panel, button, a, input, select, textarea, '
+                + 'label, [role="button"], [contenteditable="true"]'));
+        }
         function installTouchCanvas() {
             const canvas = document.getElementById('canvas-container');
             if (!canvas) return;
             const dist = (a,b) => Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
             canvas.addEventListener('touchstart', e => {
+                if (isCanvasInteractiveControl(e.target)) return;
                 if (e.touches.length >= 2) {
                     if (touchCanvasActive) touchMouse('mouseup',e.touches[0],window);
                     touchCanvasActive=false;touchPinchDistance=dist(e.touches[0],e.touches[1]);
@@ -3959,9 +3968,10 @@ print(result)`;
                     touchPinchDistance=null;touchCanvasActive=true;
                     touchMouse('mousedown',e.touches[0],e.target);
                 }
-                e.preventDefault();
+                if(e.cancelable)e.preventDefault();
             },{passive:false});
             canvas.addEventListener('touchmove',e=>{
+                if (isCanvasInteractiveControl(e.target) || (!touchCanvasActive && touchPinchDistance===null)) return;
                 if(e.touches.length>=2){
                     let d=dist(e.touches[0],e.touches[1]);
                     if(touchPinchDistance){
@@ -3972,9 +3982,13 @@ print(result)`;
                 }else if(touchCanvasActive&&e.touches.length===1){
                     touchMouse('mousemove',e.touches[0],window);
                 }
-                e.preventDefault();
+                if(e.cancelable)e.preventDefault();
             },{passive:false});
             const touchStop=e=>{
+                // The toolbar and simulator are native controls: allow their tap,
+                // scrolling and click processing to complete unmodified.
+                if (isCanvasInteractiveControl(e.target)) return;
+                if (!touchCanvasActive && touchPinchDistance===null) return;
                 if(touchCanvasActive){
                     const touch=e.changedTouches[0];
                     if(touch)touchMouse('mouseup',touch,window);
@@ -4002,6 +4016,16 @@ print(result)`;
         window.onload = () => {
             init();
             installTouchCanvas();
+            // After selecting a drawing tool, uncover the canvas on small screens.
+            const toolsPanel = document.getElementById('sidebar-panel');
+            toolsPanel?.addEventListener('click', event => {
+                const button = event.target.closest?.('button[onclick]');
+                if (!button || window.innerWidth > 960) return;
+                const action = button.getAttribute('onclick') || '';
+                if (/^(addNode\(|addFreeText\(|toggleConnectMode\(|setMode\(|selectAllElements\()/.test(action)) {
+                    closeMobileTools();
+                }
+            });
             const pythonModalInput = document.getElementById('python-modal-input');
             if (pythonModalInput) {
                 pythonModalInput.addEventListener('input', updatePythonEditorView);
