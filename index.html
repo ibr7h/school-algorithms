@@ -2,7 +2,8 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
     <title>مصمم المخططات الانسيابية - Flowchart Builder</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
@@ -365,6 +366,21 @@
         .flow-check-good { color: #15803d; }
         @media print { #flow-check-modal { display: none !important; } }
 
+
+        /* Non-destructive, visual execution trace for imported Python diagrams. */
+        .sim-current { outline: 5px solid #16a34a !important; outline-offset: 4px; filter: drop-shadow(0 0 9px #16a34a99); z-index: 11 !important; }
+        .sim-visited:not(.sim-current) { outline: 2px solid #4f46e5a0; outline-offset: 2px; }
+        .sim-flow-path { stroke: #16a34a !important; stroke-width: 5px !important; }
+        #simulation-panel { position:absolute; top:12px; left:12px; width:min(355px, 87vw); max-height:calc(100% - 26px); overflow:auto; z-index:42; background:white; color:#172033; border:2px solid #0f766e; border-radius:14px; box-shadow:0 12px 32px #0004; direction:rtl; }
+        #simulation-panel[hidden] { display:none !important; }
+        #simulation-panel button { padding:7px 9px; border-radius:7px; background:#334155; color:white; font-size:12px; font-weight:700; }
+        #simulation-panel button:disabled { opacity:.38; cursor:not-allowed; }
+        #simulation-panel button.sim-primary { background:#047857; }
+        #simulation-panel table { font-size:12px; width:100%; border-collapse:collapse; }
+        #simulation-panel td,#simulation-panel th { padding:4px 8px; border-bottom:1px solid #e2e8f0; text-align:right; }
+        #simulation-panel pre { white-space:pre-wrap; overflow-wrap:anywhere; direction:ltr; text-align:left; font:12px/1.6 monospace; background:#f8fafc; padding:8px; min-height:42px; max-height:160px; overflow-y:auto; }
+        @media print { #simulation-panel { display:none !important; } }
+
         /* Print Styles */
         @media print {
             body {
@@ -383,14 +399,85 @@
                 display: block !important;
             }
         }
-    </style>
-    <link rel="stylesheet" href="./responsive.css">
-    <script src="./responsive.js" defer></script>
+    
+        /* Essential layout is built-in even when the Tailwind CDN is unavailable. */
+        body { display:flex; flex-direction:row; background:#f8fafc; color:#1e293b; }
+        .hidden { display:none !important; }
+        #sidebar-panel { display:flex; flex-direction:column; flex:0 0 320px; width:320px; background:#0f172a; color:#e2e8f0; }
+        #sidebar-panel > .flex-1 { flex:1 1 auto; overflow-y:auto; min-height:0; }
+        #main-area { display:flex; flex-direction:column; flex:1 1 auto; overflow:hidden; }
+        #workspaces-bar { display:flex; flex:0 0 auto; align-items:center; justify-content:space-between; background:#1e293b; color:white; }
+        #workspaces-bar > div { display:flex; align-items:center; }
+        #project-controls { display:flex; flex:0 0 auto; align-items:center; background:#1e293b; color:white; }
+        #workspace-rename-bar:not(.hidden) { display:flex; }
+        #canvas-container { flex:1 1 auto; position:relative; overflow:hidden; min-height:0; }
+        #edges-layer, #nodes-layer { position:absolute; inset:0; width:100%; height:100%; }
+        #canvas-toolbar { position:absolute; display:flex; align-items:center; gap:8px; left:16px; bottom:16px; z-index:20; color:white; background:#0f172a; padding:8px 12px; border-radius:12px; }
+        #code-modal:not(.hidden), #python-import-modal:not(.hidden), #flow-check-modal:not(.hidden) { display:flex; align-items:center; justify-content:center; }
+        #code-modal, #python-import-modal, #flow-check-modal { z-index:100; inset:0; background:rgba(15,23,42,.65); }
+        /* Responsive desktop/tablet/mobile app shell. Do not scale the drawing itself. */
+        *, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+        body { min-height: 100dvh; }
+        #main-area { min-width: 0; height: 100dvh; }
+        #sidebar-panel { min-height: 0; }
+        #workspaces-bar, #project-controls { min-width: 0; }
+        #workspaces-tabs { flex: 1 1 auto; min-width: 0; scrollbar-width: thin; }
+        #canvas-container { min-height: 0; touch-action: none; }
+        #canvas-toolbar { max-width: calc(100% - 20px); overflow-x: auto; scrollbar-width: thin; white-space: nowrap; }
+        #canvas-toolbar button { flex: none; }
+        #mobile-app-header, #mobile-backdrop { display: none; }
+        #python-import-modal, #code-modal, #flow-check-modal { position: fixed !important; }
+        #python-import-modal > div, #code-modal > div, #flow-check-modal > div { max-height: 94dvh; overflow-y: auto; }
+        .python-editor-shell { min-height: min(420px, 49dvh); }
+        @media (max-width: 960px) {
+            #mobile-app-header { display: flex; align-items: center; gap: 10px; flex: none; height: 58px; padding: 6px 12px; background: #0f172a; color: white; border-bottom: 1px solid #334155; padding-top: max(6px, env(safe-area-inset-top)); }
+            #mobile-menu-button, #mobile-sidebar-close { background: #1e293b; border: 1px solid #475569; color: white; border-radius: 10px; min-width: 44px; min-height: 44px; font-weight: 700; }
+            #mobile-sidebar-dismiss { display: flex !important; }
+            #mobile-sidebar-close { display: inline-flex !important; justify-content: center; align-items: center; }
+            #sidebar-panel { position: fixed !important; z-index: 95 !important; top: 0; bottom: 0; right: 0; height: 100dvh; width: min(92vw, 375px) !important; max-width: 100vw; transform: translateX(104%); transition: transform .2s ease; box-shadow: -14px 0 48px rgba(0,0,0,.25); padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+            body.mobile-nav-open #sidebar-panel { transform: translateX(0); }
+            body.mobile-nav-open #mobile-backdrop { display: block; position: fixed; inset: 0; z-index: 94; background: rgba(15,23,42,.58); }
+            body.mobile-nav-open { overscroll-behavior: none; }
+            #workspaces-bar { gap: 5px; padding: 6px 8px; }
+            #workspaces-tabs { max-width: 55vw; }
+            #workspaces-bar > div:last-child { max-width: 42vw; overflow-x: auto; scrollbar-width: none; }
+            #workspaces-bar button { min-height: 39px; }
+            #project-controls { flex-wrap: nowrap !important; overflow-x: auto; overscroll-behavior-x: contain; gap: 6px; padding: 6px 8px; scrollbar-width: thin; }
+            #project-controls > button { flex: none; min-height: 38px; }
+            #project-save-status { flex: none; }
+            #canvas-toolbar { left: 8px !important; right: 8px !important; bottom: max(10px, env(safe-area-inset-bottom)) !important; padding: 6px; justify-content: flex-start; margin-inline: auto; }
+            #canvas-toolbar button { min-height: 38px; min-width: 38px; }
+            #floating-hint { display: none !important; }
+            #simulation-panel { top: 8px; left: 8px; width: min(350px, calc(100% - 16px)); max-height: min(62dvh, 540px); }
+            #code-modal > div, #flow-check-modal > div, #python-import-modal > div { width: 96vw !important; max-width: 96vw !important; max-height: calc(100dvh - 24px); padding: 12px !important; gap: 10px !important; }
+            #workspace-rename-bar { flex-wrap: wrap; }
+            #workspace-name-input { width: min(60vw, 260px); }
+            .python-editor-shell { min-height: 45dvh; }
+            #sidebar-panel .flex-1 { overscroll-behavior: contain; }
+        }
+        @media (max-width: 480px) {
+            #mobile-app-header { height: 54px; font-size: 13px; }
+            #workspaces-tabs { max-width: 49vw; }
+            #workspaces-bar > div:last-child { max-width: 48vw; }
+            #workspaces-bar button { font-size: 11px; padding-inline: 8px; }
+            #project-controls .project-action-btn { font-size: 11px; padding: 7px 10px; }
+            .python-editor-shell { grid-template-columns: 40px minmax(0,1fr); }
+            .python-editor-highlight,.python-editor-input { font-size: 12px; padding: 10px 8px; }
+            .python-editor-lines { font-size: 12px; padding: 10px 6px; }
+        }
+        @media print {
+            #mobile-app-header,#mobile-backdrop,#mobile-sidebar-close { display:none !important; }
+        }
+</style>
 </head>
 <body class="flex bg-slate-50 text-slate-800">
+    <div id="mobile-backdrop" onclick="closeMobileTools()" aria-hidden="true"></div>
 
     <!-- Sidebar UI -->
     <div id="sidebar-panel" class="w-80 bg-slate-900 text-slate-200 flex flex-col shadow-2xl z-20 flex-shrink-0">
+        <div class="hidden justify-end px-3 py-2" style="flex: none" id="mobile-sidebar-dismiss">
+            <button type="button" id="mobile-sidebar-close" class="hidden" onclick="closeMobileTools()" aria-label="إغلاق الأدوات">✕ إغلاق</button>
+        </div>
         <div class="p-4 border-b border-slate-700 bg-pink-600 text-white">
             <h1 class="text-lg font-bold tracking-tight">المخطط الانسيابي (Flowchart)</h1>
             <p class="text-[11px] text-pink-100 mt-0.5">تمثيل الخوارزمية خطوة بخطوة وتصديرها إلى Python</p>
@@ -596,6 +683,11 @@
 
     <!-- Main Content Column (Workspaces Bar + Canvas) -->
     <div id="main-area" class="flex-1 flex flex-col h-full overflow-hidden">
+        <header id="mobile-app-header" aria-label="القائمة الرئيسية">
+            <button id="mobile-menu-button" type="button" onclick="toggleMobileTools()" aria-controls="sidebar-panel" aria-expanded="false" aria-label="فتح الأدوات">☰</button>
+            <div class="flex-1 min-w-0"><strong class="block truncate">مصمم المخططات الانسيابية</strong><span style="font-size:10px;color:#cbd5e1">Python · مخططات · محاكاة</span></div>
+            <button type="button" style="border:1px solid #475569;border-radius:9px;padding:8px 10px;min-height:40px" onclick="fitAllWorkspaceContent()">عرض الكل</button>
+        </header>
         <!-- Multi-Workspace Tabs Bar -->
         <div id="workspaces-bar" class="bg-slate-800 border-b border-slate-700 px-3 py-2 flex items-center justify-between gap-2 z-20 flex-shrink-0">
             <div class="flex items-center gap-1.5 overflow-x-auto py-0.5" id="workspaces-tabs">
@@ -618,6 +710,7 @@
         <div id="project-controls" class="bg-slate-800/95 text-white px-3 py-2 border-b border-slate-700 flex items-center gap-2 flex-wrap z-20 flex-shrink-0" role="toolbar" aria-label="إدارة المشروع">
             <button id="btn-check-flow" onclick="openFlowValidation()" class="project-action-btn" title="فحص الأشكال والأسهم ومسارات القرارات في المنطقة الحالية">✓ فحص المخطط</button>
             <button id="btn-undo" onclick="undoAction()" disabled class="project-action-btn" title="تراجع (Ctrl/Cmd+Z)" aria-label="تراجع">↶ تراجع</button>
+            <button type="button" class="project-action-btn" onclick="openSimulation()" title="تنفيذ المخطط خطوة بخطوة">▶ محاكاة التنفيذ</button>
             <button id="btn-redo" onclick="redoAction()" disabled class="project-action-btn" title="إعادة (Ctrl/Cmd+Shift+Z)" aria-label="إعادة">↷ إعادة</button>
             <span class="h-5 border-r border-slate-600" aria-hidden="true"></span>
             <button onclick="downloadProject()" class="project-action-btn" title="تحميل نسخة احتياطية قابلة لإعادة التحرير">⬇ حفظ مشروع</button>
@@ -636,6 +729,34 @@
 
         <!-- Workspace Canvas -->
         <div id="canvas-container" class="flex-1 relative grid-bg overflow-hidden">
+            <section id="simulation-panel" hidden aria-label="محاكاة الخوارزمية" class="p-3">
+                <div class="flex items-center justify-between gap-2 border-b pb-2 mb-2">
+                    <strong>محاكاة تنفيذ الخوارزمية</strong>
+                    <button type="button" onclick="closeSimulation()" aria-label="إغلاق المحاكاة">✕</button>
+                </div>
+                <label for="sim-diagram" class="block text-xs mb-1">المخطط المُحوّل من بايثون</label>
+                <select id="sim-diagram" class="w-full p-2 border rounded mb-2 bg-white text-slate-900 text-xs" onchange="startSimulation()"></select>
+                <div class="flex gap-1 flex-wrap mb-2">
+                    <button type="button" class="sim-primary" onclick="startSimulation()">↺ بداية</button>
+                    <button type="button" id="sim-next" class="sim-primary" onclick="simulationStep()">التالي ←</button>
+                    <button type="button" id="sim-run" onclick="simulationRun()">▶ تشغيل</button>
+                    <button type="button" onclick="simulationPause()">Ⅱ إيقاف</button>
+                </div>
+                <p id="sim-status" role="status" aria-live="polite" class="text-xs mb-2 text-slate-700"></p>
+                <div id="sim-input-block" hidden class="bg-amber-50 border border-amber-300 p-2 rounded mb-2">
+                    <label id="sim-input-prompt" for="sim-input" class="block text-xs mb-1">أدخل قيمة</label>
+                    <div class="flex gap-2">
+                        <input id="sim-input" class="border rounded p-2 flex-1 min-w-0 text-sm" dir="auto" placeholder="قيمة الإدخال" onkeydown="if(event.key==='Enter') simulationProvideInput()"/>
+                        <button type="button" class="sim-primary" onclick="simulationProvideInput()">تأكيد</button>
+                    </div>
+                </div>
+                <strong class="text-xs">المتغيرات</strong>
+                <table aria-label="قيم المتغيرات"><thead><tr><th>المتغير</th><th>القيمة</th></tr></thead><tbody id="sim-variables"></tbody></table>
+                <strong class="text-xs block mt-2">المخرجات</strong>
+                <pre id="sim-output" aria-label="مخرجات البرنامج"></pre>
+                <p class="text-[11px] text-slate-500 mt-1">محاكاة تعليمية آمنة لمجموعة محددة من أوامر Python؛ لا تنفّذ بايثون فعليًا. حد أقصى 500 خطوة.</p>
+            </section>
+
             <!-- Print Only Header -->
             <div id="print-header" class="hidden p-4 text-center border-b border-slate-300 bg-white/90">
                 <h2 id="print-workspace-title" class="text-xl font-bold text-slate-800">المخطط الانسيابي</h2>
@@ -686,7 +807,7 @@
     </div>
 
     <!-- Python Export Modal -->
-    <div id="code-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity">
+    <div id="code-modal" role="dialog" aria-modal="true" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-[800px] max-w-[90vw] flex flex-col gap-4 relative">
             <h2 class="text-xl font-bold text-slate-800 border-b pb-2">كود بايثون للمخطط الانسيابي (Python Graphviz)</h2>
             <button onclick="document.getElementById('code-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 transition">
@@ -706,7 +827,7 @@
     </div>
 
     <!-- Python Input Modal -->
-    <div id="python-import-modal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 transition-opacity">
+    <div id="python-import-modal" role="dialog" aria-modal="true" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-slate-900/65 transition-opacity">
         <div class="python-idle-window rounded-lg shadow-2xl p-4 w-[980px] max-w-[96vw] flex flex-col gap-3 relative max-h-[94vh] overflow-hidden">
             <div class="python-idle-titlebar flex items-start justify-between gap-3 px-3 py-3 rounded-sm">
                 <div>
@@ -837,6 +958,207 @@ if score >= 90:
             decision: '#b3cde8'  // اتخاذ قرار
         };
 
+
+        // Simulator only handles a deliberately narrow, non-evaluating Python subset.
+        const simulation = {active:false, workspaceId:null, current:null, variables:{}, outputs:[], visited:new Set(),
+            lastEdge:null, stepCount:0, timer:null, forState:new Map(), loopStack:[], pendingInput:null, inputValues:[]};
+        class SimulationInputRequired extends Error { constructor(message) { super(message || 'أدخل قيمة من لوحة المحاكاة'); this.name='SimulationInputRequired'; } }
+        function simTokens(source) {
+            const tokens=[]; const input=String(source); let i=0;
+            while(i<input.length) {
+                if (/\s/.test(input[i])) {i++;continue;}
+                const rest=input.slice(i);
+                const m=/^(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\d+(?:\.\d+)?|[A-Za-z_]\w*|\*\*|\/\/|==|!=|<=|>=|[+\-*/%<>()\[\],=])/.exec(rest);
+                if(!m) throw new Error('تعبير غير مدعوم قرب: '+rest.slice(0,20));
+                tokens.push(m[0]); i+=m[0].length;
+                if(tokens.length>350) throw new Error('التعبير طويل جدًا للمحاكاة');
+            }
+            return tokens;
+        }
+        function simTruthy(v) {return Array.isArray(v) ? v.length>0 : !!v;}
+        function simRepresent(v) {return typeof v==='string'?v:Array.isArray(v)?'['+v.map(simRepresent).join(', ')+']':String(v);}
+        function simEval(source) {
+            const ts=simTokens(source); let i=0;
+            const peek=()=>ts[i]; const take=(t)=>{if(peek()===t){i++;return true;} return false;};
+            const expect=t=>{if(!take(t)) throw new Error('متوقع '+t+' في التعبير');};
+            const num=v=>{if(typeof v==='number'&&Number.isFinite(v))return v; throw new Error('هذه العملية تتطلب قيمة رقمية');};
+            function atom() {
+                const t=ts[i++];
+                if(t===undefined) throw new Error('تعبير غير مكتمل');
+                if(t==='(') {const v=logicalOr();expect(')');return v;}
+                if(t==='[') {const a=[];if(!take(']')){do{a.push(logicalOr());}while(take(','));expect(']');}return a;}
+                if(/^\d/.test(t))return Number(t);
+                if(t[0]==='"'||t[0]==="'")return t.slice(1,-1).replace(/\\(n|t|r|\\|"|')/g,(_,k)=>({n:'\n',t:'\t',r:'\r','\\':'\\','"':'"',"'":"'"})[k]);
+                if(t==='True')return true;if(t==='False')return false;if(t==='None')return null;
+                if(take('(')) {
+                    const args=[];if(!take(')')){do{args.push(logicalOr());}while(take(','));expect(')');}
+                    if(t==='input') {
+                        if(args.length>1)throw new Error('input يقبل رسالة اختيارية فقط');
+                        if(!simulation.inputValues.length)throw new SimulationInputRequired(args.length?simRepresent(args[0]):'أدخل قيمة');
+                        return simulation.inputValues.shift();
+                    }
+                    if(t==='range'){
+                        if(args.length<1||args.length>3||args.some(a=>!Number.isSafeInteger(a)))throw new Error('range تتطلب من 1 إلى 3 أعداد صحيحة');
+                        const [start,stop,step]=args.length===1?[0,args[0],1]:args.length===2?[args[0],args[1],1]:args;
+                        if(step===0)throw new Error('لا يمكن أن تكون خطوة range صفرًا');
+                        const a=[];for(let x=start;(step>0?x<stop:x>stop);x+=step){if(a.length>=10000)throw new Error('الحلقة كبيرة جدًا للمحاكاة');a.push(x);}return a;
+                    }
+                    if(t==='int') {if(args.length!==1||!/^[-+]?\d+$/.test(String(args[0]).trim()))throw new Error('قيمة int ليست عددًا صحيحًا');return Number(args[0]);}
+                    if(t==='float') {if(args.length!==1||!Number.isFinite(Number(args[0]))||String(args[0]).trim()==='')throw new Error('قيمة float غير رقمية');return Number(args[0]);}
+                    if(t==='str'){if(args.length!==1)throw new Error('str تتطلب قيمة واحدة');return simRepresent(args[0]);}
+                    if(t==='len'){if(args.length!==1||!(typeof args[0]==='string'||Array.isArray(args[0])))throw new Error('len تتطلب نصًا أو قائمة');return args[0].length;}
+                    throw new Error('استدعاء دالة غير مدعوم في المحاكاة: '+t);
+                }
+                if(!/^[A-Za-z_]\w*$/.test(t))throw new Error('رمز غير مدعوم: '+t);
+                if(!Object.prototype.hasOwnProperty.call(simulation.variables,t))throw new Error('المتغير غير معرّف: '+t);
+                return simulation.variables[t];
+            }
+            // Python binds exponentiation more tightly than the unary minus:
+            // -2**2 equals -(2**2), while 2**-2 is allowed.
+            function factor(){if(take('+'))return num(factor());if(take('-'))return -num(factor());return power();}
+            function power(){const l=atom();return take('**')?num(l)**num(factor()):l;}
+            function mult(){let v=factor();while(['*','/','//','%'].includes(peek())){const op=ts[i++],b=factor();
+                if(op==='*'&&typeof v==='string'&&Number.isSafeInteger(b)){v=v.repeat(Math.min(Math.max(b,0),10000));continue;}
+                if(op==='*'&&typeof b==='string'&&Number.isSafeInteger(v)){v=b.repeat(Math.min(Math.max(v,0),10000));continue;}
+                const a=num(v),bb=num(b);if(['/','//','%'].includes(op)&&bb===0)throw new Error('قسمة على صفر');
+                v=op==='*'?a*bb:op==='/'?a/bb:op==='//'?Math.floor(a/bb):a-Math.floor(a/bb)*bb;
+            }return v;}
+            function add(){let v=mult();while(['+','-'].includes(peek())){const op=ts[i++],b=mult();if(op==='+'){if(typeof v==='string'&&typeof b==='string')v+=b;else v=num(v)+num(b);}else v=num(v)-num(b);}return v;}
+            function compare(){let v=add();let result=true;let used=false;
+                while(['==','!=','<','>','<=','>=','in','not'].includes(peek())){let op=ts[i++];if(op==='not'){expect('in');op='not in';}
+                    const b=add();if(['<','>','<=','>='].includes(op)&&!(typeof v===typeof b && (typeof v==='number'||typeof v==='string')))throw new Error('مقارنة قيم غير متجانسة');
+                    const ok=op==='=='?v===b:op==='!='?v!==b:op==='<'?v<b:op==='>'?v>b:op==='<='?v<=b:op==='>='?v>=b:op==='in'?((Array.isArray(b)&&b.includes(v))||(typeof b==='string'&&b.includes(String(v)))):!((Array.isArray(b)&&b.includes(v))||(typeof b==='string'&&b.includes(String(v))));
+                    result=result&&ok;used=true;v=b;
+                }return used?result:v;}
+            function logicalNot(){if(take('not'))return !simTruthy(logicalNot());return compare();}
+            function logicalAnd(){let v=logicalNot();while(take('and')){const b=logicalNot();v=simTruthy(v)?b:v;}return v;}
+            function logicalOr(){let v=logicalAnd();while(take('or')){const b=logicalAnd();v=simTruthy(v)?v:b;}return v;}
+            const value=logicalOr();if(i!==ts.length)throw new Error('صياغة غير مدعومة قرب: '+ts.slice(i).join(' '));
+            if(typeof value==='number'&&!Number.isFinite(value))throw new Error('نتيجة رقمية غير منتهية');return value;
+        }
+        function simStatement(code) {
+            const src=code.trim();if(src==='pass')return;
+            const print=/^print\((.*)\)$/.exec(src);
+            if(print){const items=print[1].trim()?splitPythonPrintArguments(print[1]).map(simEval):[];simulation.outputs.push(items.map(simRepresent).join(' '));return;}
+            const assign=/^([A-Za-z_]\w*)\s*(\+=|-=|\*=|\/=|%=|=)\s*(.+)$/.exec(src);
+            if(assign){const [,name,op,expression]=assign;const v=simEval(expression);
+                if(op==='=')simulation.variables[name]=v;
+                else{if(!Object.prototype.hasOwnProperty.call(simulation.variables,name))throw new Error('المتغير غير معرّف: '+name);
+                    const a=simulation.variables[name];
+                    if(op==='+=')simulation.variables[name]=typeof a==='string'&&typeof v==='string'?a+v:Number(a)+Number(v);
+                    else if(op==='-=')simulation.variables[name]=Number(a)-Number(v);
+                    else if(op==='*=')simulation.variables[name]=Number(a)*Number(v);
+                    else if(op==='/=')simulation.variables[name]=Number(a)/Number(v);
+                    else simulation.variables[name]=Number(a)%Number(v);
+                }return;
+            }
+            throw new Error('تعليمة غير مدعومة في المحاكاة: '+src.slice(0,60));
+        }
+        function simulationPause(){if(simulation.timer){clearInterval(simulation.timer);simulation.timer=null;} updateSimulationUI();}
+        function closeSimulation(){simulationPause();simulation.active=false;simulation.workspaceId=null;simulation.current=null;simulation.lastEdge=null;simulation.visited.clear();const p=document.getElementById('simulation-panel');if(p)p.hidden=true;simulationPaint();}
+        function simulationFollowNode(){
+            if(!simulation.active||!simulation.current)return;
+            const node=state.nodes.find(n=>n.id===simulation.current);
+            if(!node||!canvasContainer)return;
+            const available=canvasContainer.getBoundingClientRect();
+            if(!available.width||!available.height)return;
+            // The control panel occupies the left side of the canvas.
+            const panel=document.getElementById('simulation-panel');
+            const leftMargin=panel&&!panel.hidden?Math.min(panel.offsetWidth+35,available.width*.48):35;
+            const centerX=(node.x+node.w/2)*state.zoom+state.panX;
+            const centerY=(node.y+node.h/2)*state.zoom+state.panY;
+            if(centerX<leftMargin+25||centerX>available.width-40||centerY<45||centerY>available.height-35){
+                const targetX=(leftMargin+available.width)/2;
+                state.panX+=targetX-centerX;
+                state.panY+=available.height/2-centerY;
+                applyViewportTransform();
+            }
+        }
+        function simulationPaint(){simulationFollowNode();document.querySelectorAll('#nodes-layer .node-base[data-id]').forEach(el=>{
+            el.classList.toggle('sim-current',simulation.active&&el.dataset.id===simulation.current);
+            el.classList.toggle('sim-visited',simulation.active&&el.dataset.id!==simulation.current&&simulation.visited.has(el.dataset.id));
+        });document.querySelectorAll('#edges-group path[data-edge-id]').forEach(el=>el.classList.toggle('sim-flow-path',simulation.active&&el.dataset.edgeId===simulation.lastEdge));}
+        function openSimulation(){const p=document.getElementById('simulation-panel'),sel=document.getElementById('sim-diagram');if(!p||!sel)return;
+            const starts=state.nodes.filter(n=>n.sim?.kind==='start');sel.replaceChildren();
+            starts.forEach((n,i)=>{const o=document.createElement('option');o.value=n.id;o.textContent='المخطط '+(i+1)+' — '+n.id;sel.appendChild(o);});
+            p.hidden=false;
+            if(!starts.length){simulationPause();simulation.active=false;document.getElementById('sim-status').textContent='المحاكاة متاحة للمخططات المولدة من كود بايثون في هذه النسخة؛ أنشئ مخططًا أولًا.';updateSimulationUI();return;}
+            const candidate=starts.find(n=>n.id===selectedNodeId)||starts.at(-1);sel.value=candidate.id;startSimulation();
+        }
+        function startSimulation(){simulationPause();const start=document.getElementById('sim-diagram')?.value;
+            simulation.active=true;simulation.workspaceId=activeWorkspaceId;simulation.current=start||null;simulation.variables=Object.create(null);simulation.outputs=[];
+            simulation.visited=new Set();simulation.lastEdge=null;simulation.stepCount=0;simulation.forState=new Map();simulation.loopStack=[];
+            simulation.pendingInput=null;simulation.inputValues=[];
+            document.getElementById('sim-input-block').hidden=true;
+            const node=state.nodes.find(n=>n.id===start);
+            document.getElementById('sim-status').textContent=node?'جاهز: البداية محددة. اضغط «التالي» لتنفيذ كل خطوة.':'اختر مخططًا صالحًا.';
+            simulationPaint();updateSimulationUI();
+        }
+        function simulationNextEdge(from,label){let edges=state.edges.filter(e=>e.from===from);
+            if(label!==null)edges=edges.filter(e=>e.label===label);
+            if(edges.length!==1)throw new Error(edges.length===0?'لا يوجد مسار متصل بالتعليمة الحالية.':'توجد مسارات متعددة غير محددة؛ افحص المخطط.');
+            return edges[0];
+        }
+        function simulationStep(){if(!simulation.active||!simulation.current)return;
+            if(simulation.stepCount>=500){simulationPause();document.getElementById('sim-status').textContent='توقفت المحاكاة عند 500 خطوة؛ ربما توجد حلقة لا تنتهي.';return;}
+            const node=state.nodes.find(n=>n.id===simulation.current);if(!node||!node.sim){simulationPause();document.getElementById('sim-status').textContent='لا توجد بيانات محاكاة لهذا الشكل؛ أعد تحويل كود بايثون.';return;}
+            if(node.text!==node.sim.labelSaved){simulationPause();document.getElementById('sim-status').textContent='تغير نص شكل مولّد؛ أعد تحويل الكود لتحديث بيانات المحاكاة.';return;}
+            let branch=null,detail=node.text;
+            try {
+                const meta=node.sim;
+                if(meta.kind==='statement')simStatement(meta.source);
+                if(meta.kind==='if'||meta.kind==='while'){
+                    const yes=simTruthy(simEval(meta.condition));branch=yes?'نعم':'لا';
+                    detail=meta.condition+' ← '+branch;
+                    if(meta.kind==='while'){
+                        if(yes){if(!simulation.loopStack.includes(node.id))simulation.loopStack.push(node.id);}
+                        else simulation.loopStack=simulation.loopStack.filter(id=>id!==node.id);
+                    }
+                }
+                if(meta.kind==='for'){
+                    let iter=simulation.forState.get(node.id);
+                    if(!iter){const values=simEval(meta.condition);
+                        if(!Array.isArray(values)&&typeof values!=='string')throw new Error('مصدر for يجب أن يكون range أو قائمة أو نصًا');
+                        iter={values:[...values],index:0};simulation.forState.set(node.id,iter);
+                    }
+                    if(iter.index<iter.values.length){simulation.variables[meta.variable]=iter.values[iter.index++];branch='نعم';
+                        if(!simulation.loopStack.includes(node.id))simulation.loopStack.push(node.id);
+                        detail=meta.variable+' = '+simRepresent(simulation.variables[meta.variable]);
+                    } else {simulation.forState.delete(node.id);simulation.loopStack=simulation.loopStack.filter(id=>id!==node.id);branch='لا';detail='انتهت عناصر for';}
+                }
+                if(meta.kind==='break'){const target=simulation.loopStack.pop();if(!target)throw new Error('break خارج حلقة أثناء المحاكاة');simulation.forState.delete(target);}
+                if(meta.kind==='end'){
+                    simulation.visited.add(node.id);simulation.stepCount++;simulation.current=null;simulationPause();
+                    document.getElementById('sim-status').textContent='✓ انتهى التنفيذ بعد '+simulation.stepCount+' خطوات.';
+                    simulationPaint();updateSimulationUI();return;
+                }
+                const edge=simulationNextEdge(node.id,branch);
+                simulation.visited.add(node.id);simulation.stepCount++;simulation.current=edge.to;simulation.lastEdge=edge.id;
+                document.getElementById('sim-status').textContent='الخطوة '+simulation.stepCount+': '+detail;
+                // Do not use focusOnDiagramBounds: it changes zoom/pan and project history.
+                simulationPaint();updateSimulationUI();
+            }catch(error){simulationPause();if(error instanceof SimulationInputRequired){
+                    simulation.pendingInput=error.message;const block=document.getElementById('sim-input-block');block.hidden=false;
+                    document.getElementById('sim-input-prompt').textContent=error.message;
+                    document.getElementById('sim-status').textContent='يتطلب هذا السطر إدخال قيمة. أدخلها ثم أكد.';
+                    document.getElementById('sim-input').focus();
+                }else{document.getElementById('sim-status').textContent='توقفت المحاكاة: '+error.message;}
+                updateSimulationUI();}
+        }
+        function simulationProvideInput(){if(!simulation.pendingInput)return;
+            const input=document.getElementById('sim-input');simulation.inputValues=[input.value];input.value='';
+            simulation.pendingInput=null;document.getElementById('sim-input-block').hidden=true;simulationStep();
+        }
+        function simulationRun(){if(!simulation.active||!simulation.current)return;simulationPause();simulation.timer=setInterval(()=>{
+            if(!simulation.active||!simulation.current||simulation.pendingInput){simulationPause();return;}simulationStep();
+        },500);updateSimulationUI();}
+        function updateSimulationUI(){const body=document.getElementById('sim-variables');if(!body)return;body.replaceChildren();
+            Object.entries(simulation.variables).forEach(([k,v])=>{const row=document.createElement('tr');const name=document.createElement('td'),value=document.createElement('td');name.textContent=k;value.textContent=simRepresent(v);row.append(name,value);body.appendChild(row);});
+            document.getElementById('sim-output').textContent=simulation.outputs.join('\n');
+            const next=document.getElementById('sim-next');if(next)next.disabled=!simulation.current||!!simulation.pendingInput;
+            const run=document.getElementById('sim-run');if(run)run.disabled=!simulation.current||!!simulation.pendingInput||!!simulation.timer;
+        }
+
         // Local-first project persistence and complete, bounded undo/redo history.
         const PROJECT_STORAGE_KEY = 'flowchart-builder-project-v2';
         const HISTORY_LIMIT = 60;
@@ -916,6 +1238,7 @@ if score >= 90:
         }
 
         function applyProjectSnapshot(serialized) {
+            closeSimulation();
             const project = JSON.parse(serialized);
             projectHistory.applying = true;
             clearTimeout(projectHistory.timer);
@@ -1219,6 +1542,7 @@ if score >= 90:
         }
 
         function switchWorkspace(id) {
+            closeSimulation();
             commitProjectChange();
             saveStateToActiveWorkspace();
             activeWorkspaceId = id;
@@ -2034,6 +2358,8 @@ if score >= 90:
 
                 if (node.id === selectedNodeId || isAllSelected) el.classList.add('node-selected');
                 if (node.id === connectStartNodeId) el.classList.add('node-connecting-start');
+                if (simulation.active && simulation.workspaceId === activeWorkspaceId && simulation.current === node.id) el.classList.add('sim-current');
+                else if (simulation.active && simulation.workspaceId === activeWorkspaceId && simulation.visited.has(node.id)) el.classList.add('sim-visited');
 
                 if (node.type === 'decision') {
                     const svgNS = "http://www.w3.org/2000/svg";
@@ -2278,7 +2604,8 @@ if score >= 90:
                 }
 
                 path.setAttribute('d', dPath);
-                path.setAttribute('class', `edge-path ${edge.id === selectedEdgeId ? 'edge-selected' : ''}`);
+                path.setAttribute('class', `edge-path ${edge.id === selectedEdgeId ? 'edge-selected' : ''} ${simulation.active && edge.id === simulation.lastEdge ? 'sim-flow-path' : ''}`);
+                path.setAttribute('data-edge-id', edge.id);
                 
                 const markerId = edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)';
                 path.setAttribute('marker-end', markerId);
@@ -3101,6 +3428,7 @@ print(result)`;
                     const size = flowchartImportNodeSize(type, label);
                     const w = size ? size.width : 140;
                     const id = createNode(type, mainX - w / 2, y, label, COLORS[type]);
+                    state.nodes.find(n => n.id === id).sim = {kind:'statement', source:item.text, labelSaved:label};
                     if (size) {
                         const importedNode = state.nodes.find(n => n.id === id);
                         importedNode.w = size.width;
@@ -3116,6 +3444,7 @@ print(result)`;
                     const id = createNode('process', mainX - 86, y,
                         isBreak ? 'break\nخروج من الحلقة' : 'continue\nالدورة التالية', COLORS.process);
                     const n = state.nodes.find(node => node.id === id);
+                    n.sim = {kind:item.kind, labelSaved:n.text};
                     n.w = 172; n.h = 65;
                     tails.forEach(prev => addEdge(prev, id));
                     (isBreak ? breaks : continues).push({id, label: '', routing: 'return-right'});
@@ -3130,6 +3459,7 @@ print(result)`;
                         const decY = y;
                         const decId = createNode('decision', mainX - 85, decY,
                             `قرار:\n${clause.condition}`, COLORS.decision);
+                        state.nodes.find(n => n.id === decId).sim = {kind:'if', condition:clause.condition, labelSaved:`قرار:\n${clause.condition}`};
                         (previousNo ? [previousNo] : tails).forEach(prev => addEdge(prev, decId));
                         const branch = drawPythonFlowStatements(clause.body,
                             [{id: decId, label: 'نعم'}], mainX + 325, decY + 130);
@@ -3162,6 +3492,7 @@ print(result)`;
                     const loopHeader = createNode('decision', mainX - 100, y,
                         headLabel, COLORS.decision);
                     const h = state.nodes.find(n => n.id === loopHeader);
+                    h.sim = {kind:item.loopType, condition:item.condition, variable:item.variable, labelSaved:headLabel};
                     h.w = Math.max(200, Math.min(300, headLabel.length * 3 + 100));
                     h.x = mainX - h.w / 2;
                     h.h = 110;
@@ -3280,6 +3611,7 @@ print(result)`;
             // Case 2: structured Python if / elif / else, for / while, and basic statements.
             // Validation happens before mutation, preserving existing diagrams on failure.
             const startId = createNode('start', centerX - 70, 35, 'البداية', COLORS.start);
+            state.nodes.find(n=>n.id===startId).sim={kind:'start',labelSaved:'البداية'};
             const flow = drawPythonFlowStatements(structuredStatements,
                 [{id: startId, label: ''}], centerX, 135);
             if (flow.breaks.length || flow.continues.length) {
@@ -3288,6 +3620,7 @@ print(result)`;
                 return;
             }
             const endId = createNode('start', centerX - 70, flow.nextY + 15, 'النهاية', COLORS.start);
+            state.nodes.find(n=>n.id===endId).sim={kind:'end',labelSaved:'النهاية'};
             flow.tails.forEach(previous => {
                 state.edges.push({id: 'e' + edgeCounter++, from: previous.id,
                     to: endId, label: previous.label || '',
@@ -3594,8 +3927,70 @@ print(result)`;
             render();
         }
 
+
+        // Touch bridge for the existing canvas mouse interaction model.
+        // Confined to the canvas; sidebar and modal scrolling remain native.
+        let touchCanvasActive = false, touchPinchDistance = null;
+        function touchMouse(type, touch, target) {
+            const mouse = new MouseEvent(type, {bubbles:true,cancelable:true,view:window,
+                clientX:touch.clientX,clientY:touch.clientY,button:0,buttons:type==='mouseup'?0:1});
+            (target||window).dispatchEvent(mouse);
+        }
+        function installTouchCanvas() {
+            const canvas = document.getElementById('canvas-container');
+            if (!canvas) return;
+            const dist = (a,b) => Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+            canvas.addEventListener('touchstart', e => {
+                if (e.touches.length >= 2) {
+                    if (touchCanvasActive) touchMouse('mouseup',e.touches[0],window);
+                    touchCanvasActive=false;touchPinchDistance=dist(e.touches[0],e.touches[1]);
+                } else if (e.touches.length === 1) {
+                    touchPinchDistance=null;touchCanvasActive=true;
+                    touchMouse('mousedown',e.touches[0],e.target);
+                }
+                e.preventDefault();
+            },{passive:false});
+            canvas.addEventListener('touchmove',e=>{
+                if(e.touches.length>=2){
+                    let d=dist(e.touches[0],e.touches[1]);
+                    if(touchPinchDistance){
+                        const delta=(d/touchPinchDistance-1)*state.zoom;
+                        zoomCanvas(delta,(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);
+                    }
+                    touchPinchDistance=d;
+                }else if(touchCanvasActive&&e.touches.length===1){
+                    touchMouse('mousemove',e.touches[0],window);
+                }
+                e.preventDefault();
+            },{passive:false});
+            const touchStop=e=>{
+                if(touchCanvasActive){
+                    const touch=e.changedTouches[0];
+                    if(touch)touchMouse('mouseup',touch,window);
+                }
+                touchCanvasActive=false;touchPinchDistance=null;
+                if(e.cancelable)e.preventDefault();
+            };
+            canvas.addEventListener('touchend',touchStop,{passive:false});
+            canvas.addEventListener('touchcancel',touchStop,{passive:false});
+        }
+        function toggleMobileTools(force) {
+            const open = typeof force==='boolean' ? force : !document.body.classList.contains('mobile-nav-open');
+            document.body.classList.toggle('mobile-nav-open',open);
+            const button=document.getElementById('mobile-menu-button');
+            if(button)button.setAttribute('aria-expanded',String(open));
+        }
+        function closeMobileTools(){toggleMobileTools(false);}
+        window.addEventListener('resize',()=>{
+            if(window.innerWidth>960)closeMobileTools();
+        });
+        document.addEventListener('keydown',e=>{
+            if(e.key==='Escape'&&document.body.classList.contains('mobile-nav-open'))closeMobileTools();
+        });
+
         window.onload = () => {
             init();
+            installTouchCanvas();
             const pythonModalInput = document.getElementById('python-modal-input');
             if (pythonModalInput) {
                 pythonModalInput.addEventListener('input', updatePythonEditorView);
