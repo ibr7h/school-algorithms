@@ -3939,17 +3939,10 @@ print(result)`;
         }
 
 
-        // Touch bridge for the existing canvas mouse interaction model.
-        // Confined to the canvas; sidebar and modal scrolling remain native.
-        let touchCanvasActive = false, touchPinchDistance = null;
-        function touchMouse(type, touch, target) {
-            const mouse = new MouseEvent(type, {bubbles:true,cancelable:true,view:window,
-                clientX:touch.clientX,clientY:touch.clientY,button:0,buttons:type==='mouseup'?0:1});
-            (target||window).dispatchEvent(mouse);
-        }
-        // Buttons and form controls are descendants of the drawing canvas. Never
-        // cancel their native touch events: cancelling touchstart/touchend stops
-        // iOS Safari from dispatching click, including on the simulation panel.
+        // Mobile drawing gestures use pointer capture on the *persistent canvas*.
+        // Rendering a selected node replaces its DOM element. A touchstart/touchmove
+        // listener on the node (or its former ancestors) loses subsequent events
+        // when that element is detached; pointer capture keeps them on the canvas.
         function isCanvasInteractiveControl(target) {
             return !!(target && target.closest && target.closest(
                 '#canvas-toolbar, #simulation-panel, button, a, input, select, textarea, '
@@ -3958,46 +3951,76 @@ print(result)`;
         function installTouchCanvas() {
             const canvas = document.getElementById('canvas-container');
             if (!canvas) return;
-            const dist = (a,b) => Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
-            canvas.addEventListener('touchstart', e => {
-                if (isCanvasInteractiveControl(e.target)) return;
-                if (e.touches.length >= 2) {
-                    if (touchCanvasActive) touchMouse('mouseup',e.touches[0],window);
-                    touchCanvasActive=false;touchPinchDistance=dist(e.touches[0],e.touches[1]);
-                } else if (e.touches.length === 1) {
-                    touchPinchDistance=null;touchCanvasActive=true;
-                    touchMouse('mousedown',e.touches[0],e.target);
+            const pointers = new Map();
+            let dragPointer = null;
+            let pinchDistance = null;
+            let lastDragPoint = null;
+            const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y);
+            function dispatchMouse(type, point, target) {
+                if (!point) return;
+                (target || window).dispatchEvent(new MouseEvent(type, {
+                    bubbles:true,cancelable:true,view:window,button:0,
+                    buttons:type==='mouseup'?0:1,clientX:point.x,clientY:point.y
+                }));
+            }
+            function stopDrag() {
+                if (dragPointer !== null) dispatchMouse('mouseup',lastDragPoint,window);
+                dragPointer=null;
+                lastDragPoint=null;
+            }
+            canvas.addEventListener('pointerdown', event => {
+                if (event.pointerType !== 'touch' || isCanvasInteractiveControl(event.target)) return;
+                if (pointers.has(event.pointerId)) return;
+                const point={x:event.clientX,y:event.clientY};
+                // Capture before a synthetic mousedown calls render() and replaces
+                // the touched node. Do not capture controls: preserve native click.
+                try { canvas.setPointerCapture(event.pointerId); }
+                catch(_) { return; }
+                pointers.set(event.pointerId,point);
+                if (pointers.size===1) {
+                    dragPointer=event.pointerId;
+                    lastDragPoint=point;
+                    dispatchMouse('mousedown',point,event.target);
+                } else if (pointers.size===2) {
+                    stopDrag();
+                    pinchDistance=distance(...pointers.values());
                 }
-                if(e.cancelable)e.preventDefault();
-            },{passive:false});
-            canvas.addEventListener('touchmove',e=>{
-                if (isCanvasInteractiveControl(e.target) || (!touchCanvasActive && touchPinchDistance===null)) return;
-                if(e.touches.length>=2){
-                    let d=dist(e.touches[0],e.touches[1]);
-                    if(touchPinchDistance){
-                        const delta=(d/touchPinchDistance-1)*state.zoom;
-                        zoomCanvas(delta,(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);
+                if (event.cancelable) event.preventDefault();
+            },true);
+            canvas.addEventListener('pointermove',event => {
+                if (!pointers.has(event.pointerId)) return;
+                const point={x:event.clientX,y:event.clientY};
+                pointers.set(event.pointerId,point);
+                if (pointers.size>=2) {
+                    const [a,b]=[...pointers.values()];
+                    const next=distance(a,b);
+                    if (pinchDistance && next>0) {
+                        zoomCanvas((next/pinchDistance-1)*state.zoom,(a.x+b.x)/2,(a.y+b.y)/2);
                     }
-                    touchPinchDistance=d;
-                }else if(touchCanvasActive&&e.touches.length===1){
-                    touchMouse('mousemove',e.touches[0],window);
+                    pinchDistance=next;
+                } else if (event.pointerId===dragPointer) {
+                    lastDragPoint=point;
+                    dispatchMouse('mousemove',point,window);
                 }
-                if(e.cancelable)e.preventDefault();
-            },{passive:false});
-            const touchStop=e=>{
-                // The toolbar and simulator are native controls: allow their tap,
-                // scrolling and click processing to complete unmodified.
-                if (isCanvasInteractiveControl(e.target)) return;
-                if (!touchCanvasActive && touchPinchDistance===null) return;
-                if(touchCanvasActive){
-                    const touch=e.changedTouches[0];
-                    if(touch)touchMouse('mouseup',touch,window);
+                if (event.cancelable) event.preventDefault();
+            });
+            function finish(event) {
+                if (!pointers.has(event.pointerId)) return;
+                if (event.pointerId===dragPointer) {
+                    lastDragPoint={x:event.clientX,y:event.clientY};
+                    stopDrag();
                 }
-                touchCanvasActive=false;touchPinchDistance=null;
-                if(e.cancelable)e.preventDefault();
-            };
-            canvas.addEventListener('touchend',touchStop,{passive:false});
-            canvas.addEventListener('touchcancel',touchStop,{passive:false});
+                pointers.delete(event.pointerId);
+                if (pointers.size<2) pinchDistance=null;
+                if (!pointers.size) stopDrag();
+                if (canvas.hasPointerCapture(event.pointerId)) {
+                    try {canvas.releasePointerCapture(event.pointerId);}catch(_){}
+                }
+                if (event.cancelable) event.preventDefault();
+            }
+            canvas.addEventListener('pointerup',finish);
+            canvas.addEventListener('pointercancel',finish);
+            canvas.addEventListener('lostpointercapture',finish);
         }
         function toggleMobileTools(force) {
             const open = typeof force==='boolean' ? force : !document.body.classList.contains('mobile-nav-open');
