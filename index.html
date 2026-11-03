@@ -501,6 +501,8 @@
     <link rel="stylesheet" href="./app-ui.css">
     <link rel="stylesheet" href="./school-learning-hub.css">
     <script src="./school-learning-hub.js" defer></script>
+    <link rel="stylesheet" href="./school-practice.css">
+    <script src="./school-practice.js" defer></script>
     <script src="./ui-icons.js" defer></script>
     <script src="./pwa.js" defer></script>
 </head>
@@ -4133,6 +4135,33 @@ print(result)`;
         document.addEventListener('keydown',e=>{
             if(e.key==='Escape'&&document.body.classList.contains('mobile-nav-open'))closeMobileTools();
         });
+
+        // Read-only graph snapshot and isolated practice workspace (never executes Python).
+        window.SchoolPracticeBridge = {
+            snapshot() {
+                return {
+                    nodes: state.nodes.map(n => ({id:n.id,type:n.type,text:n.text,x:n.x,y:n.y})),
+                    edges: state.edges.map(e => ({id:e.id,from:e.from,to:e.to,label:e.label||''})),
+                    workspaceId: activeWorkspaceId
+                };
+            },
+            beginActivity(title) {
+                commitProjectChange();
+                addNewWorkspace();
+                const ws = workspaces.find(w => w.id === activeWorkspaceId);
+                if (!ws) return null;
+                ws.name = `تدريب: ${String(title).slice(0,72)}`;
+                state.edges.length = 0;
+                const last = state.nodes.find(n => /نهاي/.test(n.text||''));
+                if (last) last.y = 350;
+                saveStateToActiveWorkspace();
+                renderWorkspaceTabs();
+                render();
+                commitProjectChange();
+                persistProject();
+                return activeWorkspaceId;
+            }
+        };
 
         window.onload = () => {
             init();

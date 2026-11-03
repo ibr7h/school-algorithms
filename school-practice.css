@@ -1,0 +1,47 @@
+/* Guided textbook-aligned activity: accessible, mobile-first, right-to-left. */
+#school-practice-card{margin-top:16px;padding:15px;border:1px solid #cbd5e1;border-radius:14px;background:linear-gradient(145deg,#f8fafc,#eff6ff);color:#0f172a;direction:rtl}
+.school-practice-heading{display:flex;align-items:center;gap:10px}
+.school-practice-heading h5{margin:0;font-size:14px;font-weight:800}
+.school-practice-heading small{display:block;color:#64748b;font-size:11px;margin-top:3px}
+.school-practice-heading>div:nth-child(2){min-width:0;flex:1}
+.school-practice-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:11px;background:#dbeafe;color:#1d4ed8;font-size:22px;font-weight:800;flex:0 0 auto}
+.school-practice-pass{color:#166534;background:#dcfce7;border-radius:999px;padding:5px 9px;font-size:11px;white-space:nowrap}
+.school-practice-prompt{line-height:1.95;font-size:12px;margin:12px 0 6px;font-weight:700}
+.school-practice-disclaimer{font-size:11px;line-height:1.8;color:#64748b;margin:0 0 11px}
+.school-practice-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.school-practice-btn{font-family:inherit;font-weight:800;font-size:12px;line-height:1.4;border:1px solid #94a3b8;border-radius:10px;background:#fff;color:#334155;padding:9px 11px;min-height:41px;display:inline-flex;justify-content:center;align-items:center;gap:7px;cursor:pointer}
+.school-practice-btn.primary{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+.school-practice-btn:hover{filter:brightness(.96)}
+.school-practice-btn:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+.school-practice-inline{font-size:11px;line-height:1.8;margin-top:10px;color:#475569}
+#school-practice-coach[hidden]{display:none!important}
+#school-practice-coach{position:absolute;left:12px;top:12px;z-index:45;width:min(410px,calc(100% - 24px));direction:rtl;background:#fff;color:#0f172a;border:1px solid #94a3b8;border-radius:15px;box-shadow:0 10px 30px rgba(15,23,42,.17);font-family:'Cairo',system-ui,sans-serif;overflow:hidden;touch-action:pan-y!important}
+.school-practice-coach-head{display:flex;align-items:center;gap:10px;background:#0f172a;padding:10px 12px;color:#fff}
+.school-practice-coach-title{display:grid;gap:3px;min-width:0;flex:1}
+.school-practice-coach-title strong{font-size:12px;line-height:1.5}
+.school-practice-coach-title small{color:#cbd5e1;font-size:10px}
+.school-practice-coach-head button{background:#334155;color:#fff;border:1px solid #64748b;border-radius:9px;width:35px;height:35px;flex-shrink:0;cursor:pointer;font-size:21px}
+#school-practice-coach-body{padding:10px;max-height:min(44dvh,360px);overflow-y:auto;overscroll-behavior:contain}
+#school-practice-coach.minimized #school-practice-coach-body{display:none}
+#school-practice-coach.minimized .school-practice-coach-head button{transform:rotate(180deg)}
+#school-practice-coach .school-practice-actions{margin-top:0}
+#school-practice-coach .school-practice-btn{min-height:36px;font-size:11px;padding:7px 9px}
+.school-practice-report{font-size:11px;line-height:1.85;margin-top:10px;color:#475569}
+.school-practice-score{display:flex;align-items:center;gap:12px;padding:9px 11px;background:#fff7ed;border:1px solid #fed7aa;border-radius:11px}
+.school-practice-score.success{background:#f0fdf4;border-color:#bbf7d0}
+.school-practice-score strong{font-size:22px;color:#9a3412;direction:ltr}
+.school-practice-score.success strong{color:#166534}
+.school-practice-score span{flex:1;font-weight:700;line-height:1.65}
+.school-practice-checks{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:5px}
+.school-practice-checks li{display:flex;gap:7px;align-items:flex-start;background:#f8fafc;padding:6px 8px;border-radius:8px}
+.school-practice-checks li>span:first-child{width:19px;height:19px;text-align:center;background:#fecaca;color:#991b1b;border-radius:6px;font-weight:900;flex-shrink:0}
+.school-practice-checks li.ok>span:first-child{color:#166534;background:#dcfce7}
+.school-practice-checks li small{display:block;color:#9a3412;font-size:10px;line-height:1.65}
+@media(max-width:960px){
+ #school-practice-card{padding:11px}
+ .school-practice-actions{gap:7px}
+ .school-practice-btn{flex:1 1 auto;font-size:11px}
+ #school-practice-coach{top:8px;left:8px;width:min(340px,calc(100% - 16px))}
+ #school-practice-coach-body{max-height:35dvh}
+ #school-practice-coach .school-practice-btn{min-height:40px;touch-action:manipulation!important}
+}
