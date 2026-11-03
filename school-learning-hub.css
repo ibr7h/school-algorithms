@@ -1,0 +1,105 @@
+/* Learning hub – independent styling, designed for installed PWA and touch devices. */
+#school-hub-overlay[hidden]{display:none!important}
+#school-hub-overlay{position:fixed;inset:0;z-index:1900;background:rgba(15,23,42,.75);display:flex;align-items:center;justify-content:center;overscroll-behavior:contain;padding:16px;font-family:'Cairo',system-ui,sans-serif;box-sizing:border-box}
+#school-hub-overlay *{box-sizing:border-box}
+#school-hub-overlay button{font-family:inherit;cursor:pointer}
+#school-hub-overlay button:focus-visible,#school-hub-overlay input:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+.school-hub-shell{background:#fff;border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.28);width:min(1160px,100%);height:min(850px,94dvh);color:#0f172a;display:flex;flex-direction:column;min-height:0;overflow:hidden;direction:rtl}
+.school-hub-head{background:#0f172a;color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.school-hub-brand{width:44px;height:44px;display:grid;place-items:center;background:#1d4ed8;border-radius:12px;flex-shrink:0}
+.school-hub-brand svg{width:25px;height:25px}
+.school-hub-headings{min-width:0;flex:1}
+.school-hub-headings h2{font-size:19px;font-weight:800;margin:0;color:#fff;line-height:1.5}
+.school-hub-headings p{font-size:11px;color:#cbd5e1;margin:3px 0 0;line-height:1.6}
+.school-hub-close{display:grid;place-items:center;width:42px;height:42px;border:1px solid #64748b;border-radius:10px;background:#1e293b;color:white;font-size:22px;flex-shrink:0}
+.school-hub-head-nav{display:flex;gap:8px;padding:10px 16px;background:#fff;border-bottom:1px solid #e2e8f0;align-items:center;flex-shrink:0}
+.school-hub-tab{border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:11px;font-weight:800;font-size:13px;padding:10px 15px;display:inline-flex;align-items:center;gap:8px;min-height:44px}
+.school-hub-tab[aria-selected="true"]{background:#eff6ff;color:#1d4ed8;border-color:#93c5fd}
+.school-hub-tab svg,.school-hub-action svg,.school-hub-entry svg{width:19px;height:19px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.school-hub-progress{margin-right:auto;min-width:175px;display:flex;flex-direction:column;gap:5px;color:#64748b;font-size:11px;text-align:left}
+.school-hub-progress-meter{height:6px;width:100%;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.school-hub-progress-meter i{display:block;height:100%;background:#2563eb;border-radius:999px;transition:width .2s}
+.school-hub-main{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:0;flex:1;overflow:hidden}
+.school-hub-units{border-left:1px solid #e2e8f0;background:#f8fafc;padding:12px;overflow:auto;overscroll-behavior:contain}
+.school-hub-units-title{font-size:12px;color:#64748b;margin:4px 4px 9px;font-weight:800}
+.school-hub-unit{width:100%;display:flex;align-items:center;gap:10px;text-align:right;background:transparent;border:1px solid transparent;border-radius:12px;padding:11px 10px;color:#334155;margin-bottom:6px;min-height:55px}
+.school-hub-unit:hover{background:#f1f5f9}
+.school-hub-unit[aria-current="true"]{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}
+.school-hub-unit-n{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#e2e8f0;color:#334155;flex-shrink:0;font-weight:800}
+.school-hub-unit[aria-current="true"] .school-hub-unit-n{background:#2563eb;color:#fff}
+.school-hub-unit-content{flex:1;min-width:0;display:grid;gap:3px}
+.school-hub-unit-content strong{font-size:12px;line-height:1.55}
+.school-hub-unit-content small{font-size:10px;color:#64748b}
+.school-hub-work{min-width:0;min-height:0;display:flex;flex-direction:column;background:#fff}
+.school-hub-tools{padding:13px 16px 10px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0}
+.school-hub-search{flex:1 1 210px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:11px;padding:10px 12px;min-height:43px;font-family:inherit;font-size:13px;direction:rtl;color:#0f172a;min-width:0}
+.school-hub-filter{font-size:12px;color:#334155;border:1px solid #cbd5e1;border-radius:10px;background:white;padding:10px;min-height:43px;font-family:inherit}
+.school-hub-scroll{min-height:0;flex:1;overflow-y:auto;padding:14px 16px 26px;overscroll-behavior:contain}
+.school-hub-section-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.school-hub-section-top h3{font-size:15px;font-weight:800;margin:0}
+.school-hub-section-top span{font-size:11px;color:#64748b}
+.school-hub-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.school-hub-card{border:1px solid #e2e8f0;border-radius:13px;padding:12px;background:#fff;display:flex;flex-direction:column;align-items:stretch;text-align:right;gap:7px;min-width:0;color:#1e293b;transition:background .15s, border-color .15s;min-height:98px}
+.school-hub-card:hover{background:#f8fafc;border-color:#93c5fd}
+.school-hub-card[aria-current="true"]{background:#eff6ff;border-color:#2563eb}
+.school-hub-card-line{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.school-hub-card strong{font-size:12px;line-height:1.7}
+.school-hub-card small{font-size:10px;color:#64748b}
+.school-hub-card-description{font-size:11px;color:#475569;line-height:1.7}
+.school-hub-pill{background:#f1f5f9;border-radius:20px;padding:3px 8px;white-space:nowrap;color:#475569;font-weight:700;font-size:10px;flex-shrink:0}
+.school-hub-pill.ready{background:#dcfce7;color:#166534}
+.school-hub-pill.codeonly{background:#fef3c7;color:#92400e}
+.school-hub-detail{margin-top:16px;border:1px solid #cbd5e1;border-radius:15px;overflow:hidden;background:#fff}
+.school-hub-detail-head{padding:15px 16px;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+.school-hub-detail-head h4{font-weight:800;font-size:17px;margin:5px 0}
+.school-hub-detail-head p{font-size:12px;line-height:1.9;margin:4px 0;color:#475569}
+.school-hub-detail-meta{color:#64748b;font-size:11px;display:flex;gap:8px;flex-wrap:wrap}
+.school-hub-detail-body{padding:15px 16px}
+.school-hub-detail-body h5{font-size:13px;margin:0 0 10px;font-weight:800;color:#1e293b}
+.school-hub-steps{margin:0 0 14px;padding:0 23px 0 0;color:#334155;font-size:12px;line-height:2.1}
+.school-hub-quiz{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px;margin:10px 0}
+.school-hub-quiz strong{display:block;font-size:12px;margin-bottom:10px;color:#1e40af}
+.school-hub-options{display:flex;flex-direction:column;gap:7px}
+.school-hub-choice{border:1px solid #cbd5e1;padding:9px 12px;text-align:right;border-radius:9px;background:white;color:#334155;font-size:12px;min-height:39px}
+.school-hub-choice[aria-pressed="true"]{border-color:#2563eb;background:#dbeafe}
+.school-hub-feedback{font-size:12px;line-height:1.8;margin:9px 0 0;color:#1d4ed8;font-weight:700}
+.school-hub-feedback.error{color:#b91c1c}
+.school-hub-actions{display:flex;flex-wrap:wrap;gap:8px;margin:13px 0 0}
+.school-hub-action{border:1px solid #cbd5e1;background:white;color:#334155;padding:10px 13px;min-height:42px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:800}
+.school-hub-action.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.school-hub-action.success{background:#dcfce7;color:#166534;border-color:#86efac}
+.school-hub-action:disabled{opacity:.48;cursor:not-allowed}
+.school-hub-code{background:#f8fafc;color:#0f172a;border:1px solid #cbd5e1;border-radius:12px;margin:12px 0;padding:14px;direction:ltr;text-align:left;white-space:pre;overflow:auto;font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;tab-size:4;max-height:340px}
+.school-hub-note{color:#64748b;font-size:11px;line-height:1.9}
+.school-hub-empty{padding:32px 15px;text-align:center;color:#64748b;font-size:13px}
+.school-hub-open-button{display:inline-flex;gap:6px;align-items:center;border:1px solid #60a5fa!important;border-radius:10px!important;background:#172554!important;color:#fff!important;font-weight:800!important;min-height:36px!important;padding:6px 12px!important;font-size:12px!important;line-height:1.5!important;flex-shrink:0!important}
+.school-hub-open-button svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.school-hub-mobile-button{display:none}
+@media(max-width:960px){
+ #school-hub-overlay{padding:0}
+ .school-hub-shell{height:100dvh;max-height:none;width:100%;border-radius:0}
+ .school-hub-head{padding:calc(9px + env(safe-area-inset-top)) 13px 10px}
+ .school-hub-headings h2{font-size:16px}
+ .school-hub-brand{width:38px;height:38px}
+ .school-hub-head-nav{padding:8px 12px;gap:7px}
+ .school-hub-tab{padding:9px 11px;font-size:12px}
+ .school-hub-progress{min-width:80px;max-width:115px}
+ .school-hub-main{display:flex;flex-direction:column;overflow:hidden}
+ .school-hub-units{display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;flex:0 0 auto;padding:8px 11px;border-left:0;border-bottom:1px solid #e2e8f0;scrollbar-width:thin}
+ .school-hub-units-title{display:none}
+ .school-hub-unit{width:auto;flex:0 0 auto;padding:7px 10px;min-height:41px;margin:0;gap:7px}
+ .school-hub-unit-content strong{font-size:11px}
+ .school-hub-unit-content small{display:none}
+ .school-hub-unit-n{width:25px;height:25px;font-size:11px;border-radius:8px}
+ .school-hub-tools{padding:8px 12px}
+ .school-hub-scroll{padding:11px 12px calc(30px + env(safe-area-inset-bottom))}
+ .school-hub-cards{grid-template-columns:1fr;gap:8px}
+ .school-hub-card{min-height:75px;padding:11px}
+ .school-hub-detail{margin-top:11px}
+ .school-hub-detail-body,.school-hub-detail-head{padding:12px}
+ .school-hub-action{flex:1 1 auto}
+ .school-hub-open-button.mobile-head{display:inline-flex;padding:7px!important;min-width:40px!important;width:40px;justify-content:center}
+ .school-hub-open-button.mobile-head .button-label{display:none}
+ .school-hub-open-button{font-size:11px!important}
+}
+@media(max-width:380px){.school-hub-headings p{display:none}.school-hub-brand{display:none}.school-hub-progress{min-width:65px;max-width:85px}}
