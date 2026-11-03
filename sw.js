@@ -1,7 +1,7 @@
 /* Scope-relative app shell: no CDN dependencies, no cross-origin caching. */
-const VERSION='school-algorithms-pwa-v4-python-replace-20261102';
+const VERSION='school-algorithms-pwa-v5-learning-library-20261103';
 const CACHE=`${VERSION}-shell`;
-const SHELL=['./','./index.html','./tailwind-local.css','./app-ui.css','./ui-icons.js','./pwa.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/maskable-512.png','./icons/apple-touch-icon.png'];
+const SHELL=['./','./index.html','./tailwind-local.css','./app-ui.css','./ui-icons.js','./pwa.js','./school-learning-hub.css','./school-learning-hub.js','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/maskable-512.png','./icons/apple-touch-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
  for(const key of await caches.keys())if(key.startsWith('school-algorithms-pwa-') && key!==CACHE)await caches.delete(key);
