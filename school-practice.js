@@ -84,8 +84,8 @@
       if(n[type])add(type,`عدد أشكال ${word}: ${byType(type).length} من ${n[type]} على الأقل`,byType(type).length>=n[type],`أضف ${Math.max(0,n[type]-byType(type).length)} من نوع ${word}.`);
     }
     if(n.sequence)add('sequence','تسلسل الأشكال مطابق لخطوات النشاط',hasSequence(n.sequence),'رتّب الأسهم لتنتقل الخطوات من المدخلات، إلى المعالجة، ثم إخراج النتيجة.');
-    if(n.operator){const rx=n.operator==='*'?/(?<!\*)\*(?!\*)/:n.operator==='**'?/\*\*/:/\+/;
-      add('operator',`تظهر العملية ${n.operator} داخل شكل المعالجة`,byType('process').some(x=>rx.test(x.text||'')),`اكتب العملية ${n.operator} في أحد مستطيلات المعالجة.`);}
+    if(n.operator){const hasOp=(text)=>{const value=String(text||'');return n.operator==='*'?value.replace(/\*\*/g,'').includes('*'):value.includes(n.operator);};
+      add('operator',`تظهر العملية ${n.operator} داخل شكل المعالجة`,byType('process').some(x=>hasOp(x.text)),`اكتب العملية ${n.operator} في أحد مستطيلات المعالجة.`);}
     if(n.ioText){for(const token of n.ioText){const rx=token==='input'?/(\binput\s*\(|إدخال|أدخل|اقرأ|استقبل|استقبال|احصل|اطلب|قراءة)/i:/(\bprint\s*\(|طباعة|اطبع|اعرض|أعرض|عرض|إظهار)/i;
       add('term-'+token,`توجد خطوة ${token} في شكل إدخال/إخراج`,byType('io').some(x=>rx.test(x.text||'')),`اكتب ${token} أو وصفًا عربيًا مناسبًا داخل شكل إدخال/إخراج.`);}}
     if(n.decisionText){const token=n.decisionText;
