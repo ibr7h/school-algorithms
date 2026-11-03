@@ -1,0 +1,41 @@
+/* Single icon-first control strip. Color and aria-pressed agree across phone/desktop. */
+#canvas-toolbar { display:flex;align-items:center;gap:8px; }
+#canvas-mode-strip {display:flex;align-items:center;gap:5px;direction:rtl;flex:0 0 auto;padding-inline-end:8px;border-inline-end:1px solid #475569;}
+#canvas-mode-strip .canvas-tool-btn {display:inline-flex;justify-content:center;align-items:center;flex:0 0 auto;width:39px;height:39px;min-width:39px;border-radius:10px;border:1px solid #475569;background:#1e293b;color:#e2e8f0;cursor:pointer;transition:background-color .15s,border-color .15s,box-shadow .15s;}
+#canvas-mode-strip .canvas-tool-btn:hover {background:#334155;}
+#canvas-mode-strip .canvas-tool-btn:focus-visible {outline:3px solid #fbbf24;outline-offset:2px;}
+#canvas-mode-strip .canvas-tool-btn.is-active,
+#canvas-mode-strip .canvas-tool-btn[aria-pressed="true"] {background:#0e7490;color:#fff;border:2px solid #67e8f9;box-shadow:0 0 0 2px #083344,inset 0 -2px 0 #67e8f9;}
+#sidebar-panel .canvas-tool-active {outline:2px solid #67e8f9!important;outline-offset:2px;background:#0e7490!important;color:white!important;}
+#canvas-current-tool {font-size:11px;color:#bae6fd;white-space:nowrap;min-width:64px;font-weight:700;}
+#lasso-overlay {position:absolute;inset:0;z-index:11;width:100%;height:100%;pointer-events:none;overflow:visible;}
+#lasso-outline {fill:rgba(8,145,178,.16);stroke:#0284c7;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:7 5;vector-effect:non-scaling-stroke;}
+#nodes-layer .lasso-selected {outline:3px solid #0284c7;outline-offset:4px;filter:drop-shadow(0 0 4px #38bdf8)!important;}
+#nodes-layer .free-text-item.lasso-selected {background:#bae6fd66;border-radius:5px;}
+#drawings-group > path.lasso-selected {stroke:#0891b2!important;stroke-width:6!important;filter:drop-shadow(0 0 5px #67e8f9);}
+#canvas-container:has(#canvas-tool-lasso.is-active) {cursor:crosshair;}
+#canvas-container:has(#canvas-tool-lasso.is-active) #nodes-layer {cursor:crosshair;}
+#canvas-toolbar > button[onclick],#canvas-mode-strip button {touch-action:manipulation;}
+@media (max-width:960px) {
+ #canvas-toolbar {max-width:calc(100% - 16px)!important;justify-content:flex-start!important;overflow-x:auto!important;scrollbar-width:thin;overscroll-behavior-x:contain;padding:6px!important;}
+ #canvas-mode-strip {gap:4px;}
+ #canvas-mode-strip .canvas-tool-btn {width:42px;height:42px;min-width:42px;min-height:42px;}
+ #canvas-current-tool {font-size:11px;}
+ #project-controls #btn-undo,#project-controls #btn-redo {display:none!important;} /* these also live on the canvas */
+}
+@media (pointer:coarse) {#canvas-mode-strip button {touch-action:manipulation!important;}}
+@media print {#lasso-overlay {display:none!important;}}
+
+/* On phones, all 14 actions fit on two visible rows (7 per row). */
+@media (max-width:960px){
+ #canvas-toolbar {direction:rtl;display:flex!important;overflow:visible!important;left:8px!important;right:8px!important;bottom:max(8px,env(safe-area-inset-bottom))!important;max-width:calc(100% - 16px)!important;flex-direction:column;align-items:stretch!important;gap:0!important;padding:7px!important;border-radius:13px!important;box-shadow:0 10px 30px #0f172a5c;}
+ #canvas-mode-strip {width:100%;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:39px;gap:5px;padding:0;border:0;}
+ #canvas-mode-strip .canvas-tool-btn {width:100%!important;min-width:0!important;height:39px!important;min-height:39px!important;max-width:none;padding:0!important;border-radius:9px!important;}
+ #canvas-mode-strip .ui-action-label {display:none!important;}
+ #canvas-mode-strip .ui-icon {width:20px;height:20px;}
+ #canvas-toolbar > #zoom-level-label {display:none;}
+ #canvas-current-tool {position:absolute;bottom:calc(100% + 3px);right:4px;min-width:0;border-radius:6px 6px 0 0;background:#0f172ae8;padding:2px 9px;color:#67e8f9;font-size:10px;}
+}
+@media (max-width:360px){#canvas-mode-strip {gap:3px;grid-auto-rows:36px;}#canvas-mode-strip .canvas-tool-btn {height:36px!important;min-height:36px!important;}}
+
+@media(max-width:960px){#mobile-app-header > button[onclick*="fitAllWorkspaceContent"]{display:none!important;}}
