@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
-    <title>الخوارزميات المدرسية | مصمم المخططات</title>
+    <title>الخوارزميات المدرسية | الدوال ومصمم المخططات</title>
     <meta name="application-name" content="الخوارزميات المدرسية">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -500,6 +500,74 @@
 </style>
     <link rel="stylesheet" href="./app-ui.css">
     <link rel="stylesheet" href="./school_canvas_tools.css">
+    <style>
+/* Desktop workspace v2 — project / canvas / inspector, without touching the mobile PWA. */
+#desktop-inspector { display:none; }
+#desktop-inspector-toggle { display:none; }
+@media (min-width:1180px) {
+  body.school-desktop-layout { display:flex; flex-direction:row; width:100%; height:100dvh; }
+  body.school-desktop-layout #sidebar-panel { width:258px!important; flex:0 0 258px!important; min-width:0; border-left:1px solid #334155;box-shadow:none!important; }
+  body.school-desktop-layout #sidebar-panel > .flex-1 { padding:12px!important; gap:12px; }
+  body.school-desktop-layout #sidebar-panel > .flex-1 > section:first-child > h2 { font-size:11px; }
+  body.school-desktop-layout #sidebar-panel > .flex-1 > section:first-child .grid { gap:6px; }
+  body.school-desktop-layout #sidebar-panel > .flex-1 > section:first-child button { padding:7px!important; min-height:60px; }
+  body.school-desktop-layout #sidebar-panel > .flex-1 > section:first-child button span:last-child {font-size:11px;}
+  body.school-desktop-layout #main-area { min-width:360px; flex:1 1 auto!important; width:auto!important; }
+  body.school-desktop-layout #desktop-inspector { display:flex;flex-direction:column;flex:0 0 278px;width:278px;min-width:0;height:100dvh;overflow:hidden;background:#111d31;color:#e2e8f0;border-right:1px solid #334155; }
+  body.school-desktop-layout #desktop-inspector-head { display:flex;justify-content:space-between;align-items:center;padding:16px 15px;border-bottom:1px solid #334155;background:#182943;gap:8px; }
+  body.school-desktop-layout #desktop-inspector-body { padding:14px 12px; flex:1; min-height:0; overflow-y:auto;overscroll-behavior:contain; }
+  body.school-desktop-layout #desktop-inspector #properties-panel { opacity:1; }
+  body.school-desktop-layout #desktop-inspector #properties-panel.pointer-events-none {pointer-events:auto!important;}
+  body.school-desktop-layout #desktop-inspector #properties-panel.pointer-events-none input,
+  body.school-desktop-layout #desktop-inspector #properties-panel.pointer-events-none select,
+  body.school-desktop-layout #desktop-inspector #properties-panel.pointer-events-none textarea,
+  body.school-desktop-layout #desktop-inspector #properties-panel.pointer-events-none button {pointer-events:none;opacity:.6;}
+  body.school-desktop-layout #desktop-inspector #properties-panel > h2 {display:none;}
+  body.school-desktop-layout #desktop-inspector #properties-panel > div {padding:12px!important;}
+  body.school-desktop-layout #desktop-inspector .school-inspector-hint {padding:10px 12px;color:#94a3b8;font-size:11px;line-height:1.8;}
+  body.school-desktop-layout #desktop-inspector-toggle {display:inline-flex;align-items:center;justify-content:center;min-height:36px;border:1px solid #64748b;border-radius:9px;padding:5px 10px;color:#cbd5e1;background:#334155;cursor:pointer;}
+  body.school-desktop-layout.school-inspector-hidden #desktop-inspector {display:none;}
+  body.school-desktop-layout #workspaces-bar { min-height:52px; }
+  body.school-desktop-layout #project-controls { flex-wrap:nowrap!important; gap:7px!important; overflow-x:auto;padding:8px 12px!important;scrollbar-width:thin; }
+  body.school-desktop-layout #project-controls button { white-space:nowrap; flex:0 0 auto;min-height:34px; }
+  body.school-desktop-layout #canvas-toolbar { bottom:14px!important;left:50%!important;transform:translateX(-50%);max-width:calc(100% - 24px)!important;box-shadow:0 10px 25px #0f172a44; }
+  body.school-desktop-layout #canvas-mode-strip {gap:5px;}
+  body.school-desktop-layout #canvas-current-tool {color:#a5f3fc;}
+  body.school-desktop-layout #sidebar-panel .school-old-tools > h2 {display:none;}
+  body.school-desktop-layout #sidebar-panel .school-old-tools #btn-mode-select,
+  body.school-desktop-layout #sidebar-panel .school-old-tools #btn-mode-pan,
+  body.school-desktop-layout #sidebar-panel .school-old-tools #btn-mode-pen,
+  body.school-desktop-layout #sidebar-panel .school-old-tools button[onclick*="addFreeText"],
+  body.school-desktop-layout #sidebar-panel .school-old-tools button[onclick*="selectAllElements"],
+  body.school-desktop-layout #sidebar-panel .school-old-tools #btn-connect,
+  body.school-desktop-layout #sidebar-panel .school-old-tools button[onclick*="deleteSelected"] {display:none!important;}
+  body.school-desktop-layout #sidebar-panel .school-old-tools {border:1px solid #334155;border-radius:10px;padding:9px!important;}
+  body.school-desktop-layout #sidebar-panel .school-old-tools > div:first-of-type {display:none;}
+  body.school-desktop-layout #pen-settings-box:not(.hidden) {display:block!important;}
+}
+@media (min-width:1180px) and (max-width:1360px) {
+ body.school-desktop-layout #sidebar-panel {width:224px!important;flex-basis:224px!important;}
+ body.school-desktop-layout #desktop-inspector {width:242px;flex-basis:242px;}
+}
+@media print {#desktop-inspector,#desktop-inspector-toggle {display:none!important;}}
+
+</style>
+    <style>
+/* ISO-style predefined process / function call, preserved in SVG export. */
+.shape-function { position:absolute; border:2px solid #57534e; border-radius:2px; background:#bfdbfe; }
+.shape-function::before, .shape-function::after {content:"";position:absolute;top:0;bottom:0;width:2px;background:#57534e;pointer-events:none;}
+.shape-function::before {right:14px;}
+.shape-function::after {left:14px;}
+.shape-function > span {max-width:calc(100% - 38px);overflow-wrap:anywhere;}
+.shape-return {border:2px solid #57534e;border-radius:3px;background:#bbf7d0;}
+.school-function-symbol {width:72px;height:30px;margin-bottom:7px;display:flex;align-items:center;justify-content:center;color:#0f172a;background:#bfdbfe;border:2px solid #64748b;box-shadow:inset 9px 0 0 -7px #475569,inset -9px 0 0 -7px #475569;font-weight:800;font-size:13px;}
+#school-function-note {font-size:11px;line-height:1.65;color:#fbbf24;}
+#canvas-container .shape-function {cursor:pointer;}
+#canvas-container .shape-function[data-function-ref]:hover {box-shadow:0 0 0 3px #0ea5e9a8;}
+
+</style>
+    
+    
     <link rel="stylesheet" href="./school-learning-hub.css">
     <script src="./school-learning-hub.js" defer></script>
     <link rel="stylesheet" href="./school-practice.css">
@@ -550,6 +618,11 @@
                             <text x="32" y="21" text-anchor="middle" fill="#0f172a" font-size="8.5" font-weight="bold">اتخاذ قرار</text>
                         </svg>
                         <span class="text-xs font-semibold">اتخاذ قرار</span>
+                    </button>
+                    <!-- الدالة الفرعية وفق رموز المخططات الانسيابية -->
+                    <button type="button" onclick="addNode('function')" class="flex flex-col items-center justify-center p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition group" title="دالة فرعية أو استدعاء دالة (Predefined Process)">
+                        <span class="school-function-symbol" aria-hidden="true">f(x)</span>
+                        <span class="text-xs font-semibold">دالة فرعية</span>
                     </button>
                 </div>
             </section>
@@ -625,6 +698,8 @@
                             <option value="io">الإدخال / الإخراج (Input/Output)</option>
                             <option value="process">العمليات (Process)</option>
                             <option value="decision">اتخاذ قرار (Decision)</option>
+                            <option value="function">دالة فرعية (Function / Call)</option>
+                            <option value="return">إرجاع قيمة (Return)</option>
                         </select>
                     </div>
 
@@ -1058,6 +1133,12 @@ if score >= 90:
                     if(t==='float') {if(args.length!==1||!Number.isFinite(Number(args[0]))||String(args[0]).trim()==='')throw new Error('قيمة float غير رقمية');return Number(args[0]);}
                     if(t==='str'){if(args.length!==1)throw new Error('str تتطلب قيمة واحدة');return simRepresent(args[0]);}
                     if(t==='len'){if(args.length!==1||!(typeof args[0]==='string'||Array.isArray(args[0])))throw new Error('len تتطلب نصًا أو قائمة');return args[0].length;}
+                    // Resolve only functions that have been explicitly defined and validated.
+                    // Never execute arbitrary JavaScript or Python source.
+                    if(typeof window.schoolInvokeFunction==='function') {
+                        const called=window.schoolInvokeFunction(t,args);
+                        if(called.found)return called.value;
+                    }
                     throw new Error('استدعاء دالة غير مدعوم في المحاكاة: '+t);
                 }
                 if(!/^[A-Za-z_]\w*$/.test(t))throw new Error('رمز غير مدعوم: '+t);
@@ -1130,6 +1211,13 @@ if score >= 90:
             el.classList.toggle('sim-visited',simulation.active&&el.dataset.id!==simulation.current&&simulation.visited.has(el.dataset.id));
         });document.querySelectorAll('#edges-group path[data-edge-id]').forEach(el=>el.classList.toggle('sim-flow-path',simulation.active&&el.dataset.edgeId===simulation.lastEdge));}
         function openSimulation(){const p=document.getElementById('simulation-panel'),sel=document.getElementById('sim-diagram');if(!p||!sel)return;
+            const activeFunction=workspaces.find(w=>w.id===activeWorkspaceId)?.schoolFunction;
+            if(activeFunction){
+                p.hidden=false;simulationPause();simulation.active=false;
+                sel.replaceChildren();
+                document.getElementById('sim-status').textContent='لتتبع استدعاء الدالة '+activeFunction.name+'، افتح مخطط البرنامج الرئيسي وشغّل المحاكاة من بدايته.';
+                updateSimulationUI();return;
+            }
             const starts=state.nodes.filter(n=>n.sim?.kind==='start');sel.replaceChildren();
             starts.forEach((n,i)=>{const o=document.createElement('option');o.value=n.id;o.textContent='المخطط '+(i+1)+' — '+n.id;sel.appendChild(o);});
             p.hidden=false;
@@ -1828,6 +1916,8 @@ if score >= 90:
             if (type === 'start') { color = COLORS.start; text = 'البداية / النهاية'; }
             if (type === 'io') { color = COLORS.io; text = 'إدخال / إخراج'; }
             if (type === 'decision') { color = COLORS.decision; text = 'اتخاذ قرار'; }
+            if (type === 'function') { color = '#bfdbfe'; text = 'اسم_الدالة()'; }
+            if (type === 'return') { color = '#bbf7d0'; text = 'return قيمة'; }
 
             const id = createNode(type, x, y, text, color, '');
             selectNode(id);
@@ -1840,6 +1930,8 @@ if score >= 90:
             let w = 140, h = 48;
             if (type === 'io') { w = 160; h = 48; }
             if (type === 'decision') { w = 170; h = 96; }
+            if (type === 'function') { w = 190; h = 60; }
+            if (type === 'return') { w = 160; h = 52; }
             state.nodes.push({ id, type, x, y, w, h, text, color, note, noteOffsetX, noteOffsetY });
             saveStateToActiveWorkspace();
             return id;
@@ -2889,8 +2981,11 @@ if score >= 90:
                     const skew = node.h * Math.tan(20 * Math.PI / 180) / 2;
                     const pts = `${svgNumber(x+skew)},${y} ${svgNumber(x+w+skew)},${y} ${svgNumber(x+w-skew)},${svgNumber(y+h)} ${svgNumber(x-skew)},${svgNumber(y+h)}`;
                     svg += `<polygon points="${pts}" fill="${fill}" stroke="#57534e" stroke-width="2" filter="url(#flowchart-shadow)"/>`;
-                } else if (node.type === 'process') {
+                } else if (node.type === 'process' || node.type === 'function' || node.type === 'return') {
                     svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${fill}" stroke="#57534e" stroke-width="2" filter="url(#flowchart-shadow)"/>`;
+                    if (node.type === 'function') {
+                        svg += `<path d="M${svgNumber(node.x + 15)} ${y}V${svgNumber(node.y + node.h)} M${svgNumber(node.x + node.w - 15)} ${y}V${svgNumber(node.y + node.h)}" stroke="#57534e" stroke-width="2.2" fill="none"/>`;
+                    }
                 } else if (node.type === 'decision') {
                     // Match the inset points of the live decision SVG (2px inset).
                     const pts = `${cx},${svgNumber(y+2)} ${svgNumber(x+w-2)},${cy} ${cx},${svgNumber(y+h-2)} ${svgNumber(x+2)},${cy}`;
@@ -2960,6 +3055,9 @@ if score >= 90:
                     shape = 'parallelogram';
                 } else if (n.type === 'decision') {
                     shape = 'diamond';
+                } else if (n.type === 'function') {
+                    shape = 'box';
+                    style = 'filled';
                 }
                 const safeText = n.text.replace(/'/g, "\\'").replace(/\n/g, "\\n");
                 code += `    dot.node('${n.id}', '${safeText}', shape='${shape}', style='${style}', fillcolor='${n.color}')\n`;
@@ -4137,7 +4235,8 @@ print(result)`;
             if(e.key==='Escape'&&document.body.classList.contains('mobile-nav-open'))closeMobileTools();
         });
 
-        // Read-only graph snapshot and isolated practice workspace (never executes Python).
+        // Explicit read-only snapshot and isolated workspace creation for learning practice.
+        // The educational grader never executes Python or rewrites a student's existing diagrams.
         window.SchoolPracticeBridge = {
             snapshot() {
                 return {
@@ -4149,12 +4248,13 @@ print(result)`;
             beginActivity(title) {
                 commitProjectChange();
                 addNewWorkspace();
-                const ws = workspaces.find(w => w.id === activeWorkspaceId);
+                const ws = workspaces.find(w=>w.id===activeWorkspaceId);
                 if (!ws) return null;
                 ws.name = `تدريب: ${String(title).slice(0,72)}`;
+                // Start/end scaffold without a pre-completed solution.
                 state.edges.length = 0;
-                const last = state.nodes.find(n => /نهاي/.test(n.text||''));
-                if (last) last.y = 350;
+                const last=state.nodes.find(n=>/نهاي/.test(n.text||''));
+                if(last) last.y = 350;
                 saveStateToActiveWorkspace();
                 renderWorkspaceTabs();
                 render();
@@ -4214,5 +4314,287 @@ print(result)`;
         };
     </script>
     <script src="./school_canvas_tools.js"></script>
+<script>
+/* Move the *real* properties controls, never duplicate input IDs or event handlers. */
+(() => {
+  'use strict';
+  const media = matchMedia('(min-width:1180px)');
+  function init(){
+    const sidebar=document.getElementById('sidebar-panel');
+    const main=document.getElementById('main-area');
+    const panel=document.getElementById('properties-panel');
+    const controls=document.getElementById('project-controls');
+    if(!sidebar || !main || !panel || !controls)return;
+    const originalParent=panel.parentNode;
+    const marker=document.createComment('original property panel location');
+    originalParent.insertBefore(marker,panel);
+    const inspector=document.createElement('aside');inspector.id='desktop-inspector';
+    inspector.setAttribute('aria-label','لوحة خصائص العنصر');
+    inspector.innerHTML='<header id="desktop-inspector-head"><strong>خصائص العنصر</strong><button type="button" id="desktop-inspector-close" aria-label="إخفاء الخصائص" title="إخفاء الخصائص">✕</button></header><div id="desktop-inspector-body"><p class="school-inspector-hint">اختر عنصرًا من لوحة الرسم لتعديل النص، الحجم، اللون والارتباطات.</p></div>';
+    main.insertAdjacentElement('afterend',inspector);
+    const body=inspector.querySelector('#desktop-inspector-body');
+    const toggle=document.createElement('button');toggle.id='desktop-inspector-toggle';toggle.type='button';toggle.textContent='▣ الخصائص';
+    toggle.title='إظهار أو إخفاء لوحة الخصائص';toggle.setAttribute('aria-controls','desktop-inspector');
+    controls.appendChild(toggle);
+    const oldTools=document.getElementById('btn-mode-select')?.closest('section');
+    oldTools?.classList.add('school-old-tools');
+    let hidden=false;
+    try{hidden=localStorage.getItem('school.desktop.inspector.hidden')==='1';}catch(_){ }
+    function apply(){
+      const enabled=media.matches;
+      document.body.classList.toggle('school-desktop-layout',enabled);
+      if(enabled){if(panel.parentNode!==body)body.appendChild(panel);}
+      else if(panel.parentNode!==originalParent)originalParent.insertBefore(panel,marker.nextSibling);
+      document.body.classList.toggle('school-inspector-hidden',enabled && hidden);
+      toggle.setAttribute('aria-expanded',String(enabled && !hidden));
+      toggle.textContent=hidden?'▣ إظهار الخصائص':'▣ الخصائص';
+    }
+    function changeHidden(v){hidden=v;try{localStorage.setItem('school.desktop.inspector.hidden',v?'1':'0');}catch(_){ }apply();}
+    toggle.addEventListener('click',()=>changeHidden(!hidden));
+    inspector.querySelector('#desktop-inspector-close')?.addEventListener('click',()=>changeHidden(true));
+    media.addEventListener?.('change',apply);window.addEventListener('resize',apply,{passive:true});apply();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);
+  else init();
+})();
+
+</script>
+<script>
+/* Functions (def / call / return), separate linked workspaces, and bounded educational execution. */
+(() => {
+ 'use strict';
+ const NAME=/^[A-Za-z_]\w*$/;
+ const rawConverter=window.convertPythonToFlowchart;
+ let busy=false, nesting=0;
+ const status=(s,error=false)=>{
+   if(typeof window.showPythonConversionStatus==='function')window.showPythonConversionStatus(s,error);
+   else{const e=document.getElementById('python-conversion-status');if(e){e.textContent=s;e.style.color=error?'#fda4af':'#86efac';}}
+ };
+ function dedent(lines){
+   const useful=lines.filter(x=>x.trim()&&!x.trim().startsWith('#'));
+   if(!useful.length)throw Error('الدالة فارغة؛ اكتب تعليمة أو pass.');
+   const minimum=Math.min(...useful.map(s=>(s.match(/^ */)||[''])[0].length));
+   if(minimum<1)throw Error('يجب إزاحة تعليمات الدالة إلى الداخل.');
+   return lines.map(s=>s.trim()?s.slice(Math.min(minimum,(s.match(/^ */)||[''])[0].length)):'').join('\n').trimEnd();
+ }
+ function splitParams(src){
+   if(!src.trim())return [];
+   return splitPythonPrintArguments(src).map(p=>{
+     const m=/^([A-Za-z_]\w*)(?:\s*=\s*(.+))?$/.exec(p.trim());
+     if(!m)throw Error('معاملات غير مدعومة: '+p+'؛ استخدم أسماء واضحة أو قيمًا افتراضية بسيطة.');
+     return {name:m[1],defaultExpression:m[2]??null};
+   });
+ }
+ function returnSentinel(code){
+   return code.split('\n').map((line)=>{
+     const m=/^(\s*)return(?:\s+(.*))?$/.exec(line);
+     return m ? `${m[1]}__school_return__ = ${m[2]??'None'}`:line;
+   }).join('\n');
+ }
+ function extract(src){
+   const lines=src.replace(/\r\n?/g,'\n').replace(/\t/g,'    ').split('\n');
+   const defs=[],main=[];let i=0;
+   while(i<lines.length){
+     const row=lines[i];
+     const header=/^def\s+([A-Za-z_]\w*)\s*\(([^()]*)\)\s*:\s*(?:#.*)?$/.exec(row);
+     if(!header){
+       if(/^\s*def\b/.test(row)||/^@/.test(row))throw Error('تعريف دالة غير مدعوم في السطر '+(i+1)+'؛ استخدم def name(parameters): دون زخارف.');
+       main.push(row);i++;continue;
+     }
+     const name=header[1],params=splitParams(header[2]);
+     if(defs.some(x=>x.name===name))throw Error('اسم الدالة مكرر: '+name);
+     i++;const body=[];
+     while(i<lines.length){
+       const line=lines[i],indent=(line.match(/^ */)||[''])[0].length;
+       if(line.trim() && indent===0)break;
+       body.push(line);i++;
+     }
+     const normalized=dedent(body);
+     const adapted=returnSentinel(normalized);
+     let statements;
+     try{statements=parsePythonFlowStatements(adapted);}catch(e){throw Error(`داخل الدالة ${name}: ${e.message}`);}
+     if(!statements.length)throw Error('الدالة '+name+' فارغة.');
+     defs.push({name,params,body:normalized,statements});
+   }
+   return {defs,main:main.join('\n').trim()};
+ }
+ function isKnownCall(line,names){
+   const match=/^(?:[A-Za-z_]\w*\s*=\s*)?([A-Za-z_]\w*)\s*\((.*)\)\s*$/.exec(line.trim());
+   return match && names.has(match[1])?match[1]:null;
+ }
+ function makeCallShapes(nodes,refs){
+   let changed=0;
+   for(const node of nodes){
+     const source=node.sim?.source??node.text;
+     const fn=isKnownCall(source,new Set(refs.keys()));
+     if(!fn)continue;
+     node.type='function';node.color='#bfdbfe';node.w=Math.max(node.w,215);node.h=Math.max(node.h,60);
+     node.schoolFunctionName=fn;node.schoolFunctionRef=refs.get(fn);
+     node.text=source;changed++;
+   }
+   return changed;
+ }
+ function spawnFunction(def){
+   addNewWorkspace();
+   // The default empty Start→End canvas is a placeholder, not part of the function.
+   state.nodes.length=0;state.edges.length=0;state.texts.length=0;state.drawings.length=0;
+   const ws=workspaces.find(w=>w.id===activeWorkspaceId);
+   ws.name='دالة: '+def.name+'('+def.params.map(p=>p.name).join(', ')+')';
+   ws.schoolFunction={name:def.name,params:def.params,body:def.body,statements:def.statements};
+   const x=Math.max(380,Math.floor((canvasContainer.clientWidth||800)/2));
+   const start=createNode('start',x-98,45,'بدء '+def.name+'()',COLORS.start);
+   const startN=state.nodes.find(n=>n.id===start);startN.w=196;startN.h=55;startN.sim={kind:'start'};
+   const flow=drawPythonFlowStatements(def.statements,[{id:start,label:''}],x,140);
+   if(flow.breaks.length||flow.continues.length)throw Error('خطأ في break / continue داخل الدالة '+def.name);
+   const returns=state.nodes.filter(n=>n.sim?.source?.startsWith('__school_return__ = '));
+   returns.forEach(n=>{
+     n.type='return';n.color='#bbf7d0';n.text='return '+n.sim.source.slice('__school_return__ = '.length);
+     n.w=Math.max(170,n.w);n.h=Math.max(55,n.h);
+     n.schoolReturnExpression=n.sim.source.slice('__school_return__ = '.length);
+     n.sim={kind:'return',source:n.schoolReturnExpression};
+   });
+   // Return stops execution immediately. Remove its former fall-through and loop-back links.
+   const returnIds=new Set(returns.map(n=>n.id));
+   for(let k=state.edges.length-1;k>=0;k--)if(returnIds.has(state.edges[k].from))state.edges.splice(k,1);
+   const end=createNode('start',x-95,flow.nextY+40,'عودة إلى المستدعي',COLORS.start);
+   const endN=state.nodes.find(n=>n.id===end);endN.w=190;endN.sim={kind:'end'};
+   returns.forEach(n=>state.edges.push({id:'e'+edgeCounter++,from:n.id,to:end,label:'إرجاع'}));
+   flow.tails.filter(t=>!returnIds.has(t.id)).forEach(t=>state.edges.push({id:'e'+edgeCounter++,from:t.id,to:end,label:t.label||''}));
+   saveStateToActiveWorkspace();render();
+   return ws;
+ }
+ async function importFunctions(mode,raw){
+   const prepared=extract(raw);
+   if(!prepared.defs.length)return rawConverter(mode);
+   // Front-load validation. Unsupported code never changes any workspace.
+   if(prepared.main)parsePythonFlowStatements(prepared.main);
+   const originalProject=snapshotProject();
+   const initialWorkspace=activeWorkspaceId;
+   const area=document.getElementById('python-input-area');
+   const originalCode=area.value;
+   busy=true;
+   try{
+     if(prepared.main){
+       area.value=prepared.main;
+       const ok=await rawConverter(mode);
+       if(!ok)return false;
+     }
+     const mainWs=workspaces.find(w=>w.id===initialWorkspace);
+     const refs=new Map();
+     for(const def of prepared.defs){const ws=spawnFunction(def);refs.set(def.name,ws.id);}
+     if(mainWs)makeCallShapes(mainWs.nodes,refs);
+     // Calls from one function to another are linked after all workspaces exist.
+     for(const ws of workspaces){if(ws.schoolFunction)makeCallShapes(ws.nodes,refs);}
+     switchWorkspace(initialWorkspace);
+     renderWorkspaceTabs();render();commitProjectChange();persistProject();
+     updateFunctionList();
+     status(`تم تحويل ${prepared.defs.length} دالة إلى مخططات مستقلة. انقر مرتين على شكل الاستدعاء لفتح الدالة.`);
+     return true;
+   }catch(e){
+     applyProjectSnapshot(originalProject);status('لم تُعدّل المخططات: '+e.message,true);return false;
+   }finally{area.value=originalCode;busy=false;}
+ }
+ if(typeof rawConverter==='function'){
+   window.convertPythonToFlowchart=async function(mode='append'){
+     if(busy)return false;
+     const text=document.getElementById('python-input-area')?.value||'';
+     if(!/^def\s/m.test(text))return rawConverter(mode);
+     return importFunctions(mode,text);
+   };
+ }
+ function functionWorkspaces(){return workspaces.filter(w=>w.schoolFunction);}
+ function updateFunctionList(){
+   const box=document.getElementById('school-function-list');if(!box)return;
+   box.replaceChildren();
+   for(const ws of functionWorkspaces()){
+     const btn=document.createElement('button');btn.type='button';btn.textContent=ws.name;
+     btn.title='فتح مخطط '+ws.name;btn.addEventListener('click',()=>{
+       switchWorkspace(ws.id);if(typeof window.closeMobileTools==='function')window.closeMobileTools();
+     });box.append(btn);
+   }
+   if(!box.childElementCount){const hint=document.createElement('p');hint.textContent='اكتب def في محرر بايثون لإنشاء مخطط دالة.';box.append(hint);}
+ }
+ function initNav(){
+   const side=document.getElementById('sidebar-panel');const scroll=side?.querySelector('.flex-1.overflow-y-auto');
+   if(scroll){
+     const section=document.createElement('section');section.id='school-functions-section';
+     section.innerHTML='<h2>الدوال الفرعية</h2><p>الدوال واستدعاءاتها — درس الكتاب ص 79–82.</p><div id="school-function-list"></div><button type="button" id="school-functions-demo">مثال def / return</button>';
+     scroll.insertBefore(section,scroll.children[1]||null);
+     section.querySelector('#school-functions-demo').addEventListener('click',()=>{
+       const code='def area(length, width):\n    result = length * width\n    return result\n\nx = area(5, 4)\nprint(x)';
+       const area=document.getElementById('python-input-area');if(area)area.value=code;
+       if(typeof window.openPythonImportModal==='function')window.openPythonImportModal();
+       if(typeof window.closeMobileTools==='function')window.closeMobileTools();
+     });
+   }
+   document.getElementById('nodes-layer')?.addEventListener('dblclick',e=>{
+     const n=e.target.closest('.node-base[data-id]');if(!n)return;
+     const node=state.nodes.find(v=>v.id===n.dataset.id);
+     const ws=node?.schoolFunctionRef&&workspaces.find(w=>w.id===node.schoolFunctionRef);
+     if(ws){e.stopPropagation();switchWorkspace(ws.id);}
+   });
+   const observer=new MutationObserver(updateFunctionList);
+   const tabs=document.getElementById('workspaces-tabs');if(tabs)observer.observe(tabs,{childList:true});
+   updateFunctionList();
+ }
+ function executeFunction(name,args){
+   const ws=functionWorkspaces().find(w=>w.schoolFunction.name===name);
+   if(!ws)return {found:false};
+   if(++nesting>14){nesting--;throw Error('تجاوز عمق استدعاء الدوال المسموح (14).');}
+   const func=ws.schoolFunction,params=func.params;
+   if(args.length>params.length){nesting--;throw Error(`الدالة ${name} استقبلت وسائط أكثر من اللازم.`);}
+   const previous=simulation.variables;
+   const locals=Object.assign(Object.create(null),previous);
+   simulation.variables=locals;
+   let count=0;
+   try{
+     params.forEach((p,i)=>{
+       if(i<args.length)locals[p.name]=args[i];
+       else if(p.defaultExpression!==null)locals[p.name]=simEval(p.defaultExpression);
+       else throw Error(`الدالة ${name} تحتاج المعامل ${p.name}.`);
+     });
+     const go=(items)=>{
+       for(const item of items){
+         if(++count>500)throw Error('تجاوز حد خطوات الدالة (500).');
+         if(item.kind==='statement'){
+           const m=/^__school_return__\s*=\s*(.*)$/.exec(item.text);
+           if(m)return {kind:'return',value:simEval(m[1])};
+           simStatement(item.text);continue;
+         }
+         if(item.kind==='if'){
+           let chosen=item.alternate;
+           for(const c of item.clauses){if(simTruthy(simEval(c.condition))){chosen=c.body;break;}}
+           const v=chosen&&go(chosen);if(v)return v;
+         }else if(item.kind==='loop'){
+           const iterable=item.loopType==='for'?simEval(item.condition):null;
+           if(item.loopType==='for'&&!Array.isArray(iterable))throw Error('for تتطلب نطاقًا أو قائمة.');
+           let broke=false;
+           const iteration=(item.loopType==='for'?iterable:Array(500).fill(null));
+           for(const v of iteration){
+             if(item.loopType==='for')locals[item.variable]=v;
+             else if(!simTruthy(simEval(item.condition)))break;
+             if(++count>500)throw Error('توقفت حلقة الدالة عند 500 خطوة.');
+             const outcome=go(item.body);
+             if(outcome?.kind==='return')return outcome;
+             if(outcome?.kind==='break'){broke=true;break;}
+             if(outcome?.kind==='continue')continue;
+           }
+           if(!broke&&item.alternate){const v=go(item.alternate);if(v)return v;}
+         }else if(item.kind==='break'||item.kind==='continue')return {kind:item.kind};
+       }
+       return null;
+     };
+     const result=go(func.statements);
+     return {found:true,value:result?.kind==='return'?result.value:null};
+   }finally{simulation.variables=previous;nesting--;}
+ }
+ window.schoolInvokeFunction=(name,args)=>executeFunction(name,args);
+ // The app simulator maintains its own call stack at each step; function evaluations
+ // are bounded and use local variable dictionaries without eval/Function().
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initNav);
+ else initNav();
+})();
+
+</script>
 </body>
 </html>
