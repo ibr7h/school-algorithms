@@ -846,6 +846,7 @@
                     <strong>محاكاة تنفيذ الخوارزمية</strong>
                     <button type="button" onclick="closeSimulation()" aria-label="إغلاق المحاكاة">✕</button>
                 </div>
+                <div id="sim-call-path" role="status" aria-live="polite" class="text-xs bg-sky-50 text-sky-900 p-2 rounded-md mb-2 font-bold" style="overflow-wrap:anywhere">البرنامج الرئيسي</div>
                 <label for="sim-diagram" class="block text-xs mb-1">المخطط المُحوّل من بايثون</label>
                 <select id="sim-diagram" class="w-full p-2 border rounded mb-2 bg-white text-slate-900 text-xs" onchange="startSimulation()"></select>
                 <div class="flex gap-1 flex-wrap mb-2">
@@ -862,7 +863,7 @@
                         <button type="button" class="sim-primary" onclick="simulationProvideInput()">تأكيد</button>
                     </div>
                 </div>
-                <strong class="text-xs">المتغيرات</strong>
+                <strong id="sim-variables-title" class="text-xs">متغيرات البرنامج الرئيسي</strong>
                 <table aria-label="قيم المتغيرات"><thead><tr><th>المتغير</th><th>القيمة</th></tr></thead><tbody id="sim-variables"></tbody></table>
                 <strong class="text-xs block mt-2">المخرجات</strong>
                 <pre id="sim-output" aria-label="مخرجات البرنامج"></pre>
@@ -1087,8 +1088,79 @@ if score >= 90:
 
         // Simulator only handles a deliberately narrow, non-evaluating Python subset.
         const simulation = {active:false, workspaceId:null, current:null, variables:{}, outputs:[], visited:new Set(),
-            lastEdge:null, stepCount:0, timer:null, forState:new Map(), loopStack:[], pendingInput:null, inputValues:[]};
+            lastEdge:null, stepCount:0, timer:null, forState:new Map(), loopStack:[], pendingInput:null, inputValues:[],
+            globalVariables:null, frames:[], functionName:null, returnValue:null, callResults:new Map(),
+            callOrdinal:0, executingStep:false};
         class SimulationInputRequired extends Error { constructor(message) { super(message || 'أدخل قيمة من لوحة المحاكاة'); this.name='SimulationInputRequired'; } }
+        class SimulationCallRequired extends Error {
+            constructor(name, args, key, definition) {
+                super('استدعاء الدالة ' + name);this.name='SimulationCallRequired';
+                this.functionName=name;this.args=args;this.callKey=key;this.definition=definition;
+            }
+        }
+        function simulationFunctionDefinition(name) {
+            const currentWs=workspaces.find(ws=>ws.id===activeWorkspaceId);
+            const inline=currentWs?.inlineFunctions?.find(f=>f.name===name);
+            if(inline && state.nodes.some(n=>n.id===inline.anchorNodeId && n.schoolFunctionOwner===name))return inline;
+            // Read compatibility with projects saved before in-canvas function diagrams.
+            const old=workspaces.find(ws=>ws.schoolFunction?.name===name);
+            return old ? {...old.schoolFunction,anchorNodeId:null} : null;
+        }
+        function simulationStepIntoCall(request) {
+            if(simulation.frames.length >= 14)throw new Error('تجاوز عمق استدعاء الدوال المسموح (14).');
+            const def=request.definition;
+            if(!def.anchorNodeId || !state.nodes.some(n=>n.id===def.anchorNodeId))
+                throw new Error('لا يوجد رسم مرتبط بالدالة '+request.functionName+'؛ أعد تحويل كود الدالة.');
+            const params=def.params||[];
+            if(request.args.length>params.length)throw new Error('الدالة '+request.functionName+' استقبلت وسائط أكثر من اللازم.');
+            const local=Object.assign(Object.create(null),simulation.globalVariables||{});
+            for(let i=0;i<params.length;i++) {
+                const param=params[i];
+                if(i<request.args.length)local[param.name]=request.args[i];
+                else if(param.defaultExpression!==null && param.defaultExpression!==undefined) {
+                    // Defaults are evaluated once at call entry, in the caller's context.
+                    // A nested function invocation in a default is currently rejected.
+                    const before=simulation.executingStep;
+                    simulation.executingStep=false;
+                    try {local[param.name]=simEval(param.defaultExpression);} finally{simulation.executingStep=before;}
+                }else throw new Error('الدالة '+request.functionName+' تحتاج المعامل '+param.name+'.');
+            }
+            simulation.frames.push({
+                current:simulation.current, variables:simulation.variables,
+                forState:simulation.forState, loopStack:simulation.loopStack,
+                callResults:simulation.callResults, functionName:simulation.functionName,
+                returnValue:simulation.returnValue, callKey:request.callKey
+            });
+            simulation.variables=local;
+            simulation.forState=new Map();
+            simulation.loopStack=[];
+            simulation.callResults=new Map();
+            simulation.returnValue=null;
+            simulation.functionName=request.functionName;
+            simulation.current=def.anchorNodeId;
+            simulation.lastEdge=null;
+            simulation.stepCount++;
+            document.getElementById('sim-status').textContent='الخطوة '+simulation.stepCount+': دخول الدالة '+request.functionName+'('+request.args.map(simRepresent).join(', ')+')';
+            simulationPaint();updateSimulationUI();
+        }
+        function simulationFinishFunction(node) {
+            const returnValue=simulation.returnValue;
+            const frame=simulation.frames.pop();
+            simulation.visited.add(node.id);
+            simulation.stepCount++;
+            simulation.current=frame.current;
+            simulation.variables=frame.variables;
+            simulation.forState=frame.forState;
+            simulation.loopStack=frame.loopStack;
+            simulation.callResults=frame.callResults;
+            simulation.callResults.set(frame.callKey,returnValue);
+            const from=simulation.functionName;
+            simulation.functionName=frame.functionName;
+            simulation.returnValue=frame.returnValue;
+            simulation.lastEdge=null;
+            document.getElementById('sim-status').textContent='الخطوة '+simulation.stepCount+': العودة من '+from+'، القيمة = '+simRepresent(returnValue);
+            simulationPaint();updateSimulationUI();
+        }
         function simTokens(source) {
             const tokens=[]; const input=String(source); let i=0;
             while(i<input.length) {
@@ -1133,7 +1205,17 @@ if score >= 90:
                     if(t==='float') {if(args.length!==1||!Number.isFinite(Number(args[0]))||String(args[0]).trim()==='')throw new Error('قيمة float غير رقمية');return Number(args[0]);}
                     if(t==='str'){if(args.length!==1)throw new Error('str تتطلب قيمة واحدة');return simRepresent(args[0]);}
                     if(t==='len'){if(args.length!==1||!(typeof args[0]==='string'||Array.isArray(args[0])))throw new Error('len تتطلب نصًا أو قائمة');return args[0].length;}
-                    // Resolve only functions that have been explicitly defined and validated.
+                    // Each user-defined call is suspended and entered on the drawing,
+                    // not evaluated behind the scenes in one synchronous step.
+                    if(simulation.executingStep) {
+                        const definition=simulationFunctionDefinition(t);
+                        if(definition) {
+                            const key=simulation.current+':'+simulation.callOrdinal++;
+                            if(simulation.callResults.has(key))return simulation.callResults.get(key);
+                            throw new SimulationCallRequired(t,args,key,definition);
+                        }
+                    }
+                    // Compatibility for older projects or isolated expression checks.
                     // Never execute arbitrary JavaScript or Python source.
                     if(typeof window.schoolInvokeFunction==='function') {
                         const called=window.schoolInvokeFunction(t,args);
@@ -1187,7 +1269,7 @@ if score >= 90:
             throw new Error('تعليمة غير مدعومة في المحاكاة: '+src.slice(0,60));
         }
         function simulationPause(){if(simulation.timer){clearInterval(simulation.timer);simulation.timer=null;} updateSimulationUI();}
-        function closeSimulation(){simulationPause();simulation.active=false;simulation.workspaceId=null;simulation.current=null;simulation.lastEdge=null;simulation.visited.clear();const p=document.getElementById('simulation-panel');if(p)p.hidden=true;simulationPaint();}
+        function closeSimulation(){simulationPause();simulation.active=false;simulation.workspaceId=null;simulation.current=null;simulation.lastEdge=null;simulation.visited.clear();simulation.frames=[];simulation.functionName=null;simulation.callResults.clear();simulation.executingStep=false;const p=document.getElementById('simulation-panel');if(p)p.hidden=true;simulationPaint();}
         function simulationFollowNode(){
             if(!simulation.active||!simulation.current)return;
             const node=state.nodes.find(n=>n.id===simulation.current);
@@ -1228,6 +1310,8 @@ if score >= 90:
             simulation.active=true;simulation.workspaceId=activeWorkspaceId;simulation.current=start||null;simulation.variables=Object.create(null);simulation.outputs=[];
             simulation.visited=new Set();simulation.lastEdge=null;simulation.stepCount=0;simulation.forState=new Map();simulation.loopStack=[];
             simulation.pendingInput=null;simulation.inputValues=[];
+            simulation.globalVariables=simulation.variables;simulation.frames=[];simulation.functionName=null;
+            simulation.returnValue=null;simulation.callResults=new Map();simulation.callOrdinal=0;simulation.executingStep=false;
             document.getElementById('sim-input-block').hidden=true;
             const node=state.nodes.find(n=>n.id===start);
             document.getElementById('sim-status').textContent=node?'جاهز: البداية محددة. اضغط «التالي» لتنفيذ كل خطوة.':'اختر مخططًا صالحًا.';
@@ -1238,14 +1322,22 @@ if score >= 90:
             if(edges.length!==1)throw new Error(edges.length===0?'لا يوجد مسار متصل بالتعليمة الحالية.':'توجد مسارات متعددة غير محددة؛ افحص المخطط.');
             return edges[0];
         }
-        function simulationStep(){if(!simulation.active||!simulation.current)return;
+        function simulationStep(){
+            if(!simulation.active||!simulation.current||simulation.pendingInput)return;
             if(simulation.stepCount>=500){simulationPause();document.getElementById('sim-status').textContent='توقفت المحاكاة عند 500 خطوة؛ ربما توجد حلقة لا تنتهي.';return;}
-            const node=state.nodes.find(n=>n.id===simulation.current);if(!node||!node.sim){simulationPause();document.getElementById('sim-status').textContent='لا توجد بيانات محاكاة لهذا الشكل؛ أعد تحويل كود بايثون.';return;}
+            const node=state.nodes.find(n=>n.id===simulation.current);
+            if(!node||!node.sim){simulationPause();document.getElementById('sim-status').textContent='لا توجد بيانات محاكاة لهذا الشكل؛ أعد تحويل كود بايثون.';return;}
             if(node.text!==node.sim.labelSaved){simulationPause();document.getElementById('sim-status').textContent='تغير نص شكل مولّد؛ أعد تحويل الكود لتحديث بيانات المحاكاة.';return;}
             let branch=null,detail=node.text;
+            simulation.callOrdinal=0;
+            simulation.executingStep=true;
             try {
                 const meta=node.sim;
                 if(meta.kind==='statement')simStatement(meta.source);
+                if(meta.kind==='return'){
+                    simulation.returnValue=simEval(meta.source||'None');
+                    detail='return '+simRepresent(simulation.returnValue);
+                }
                 if(meta.kind==='if'||meta.kind==='while'){
                     const yes=simTruthy(simEval(meta.condition));branch=yes?'نعم':'لا';
                     detail=meta.condition+' ← '+branch;
@@ -1267,22 +1359,31 @@ if score >= 90:
                 }
                 if(meta.kind==='break'){const target=simulation.loopStack.pop();if(!target)throw new Error('break خارج حلقة أثناء المحاكاة');simulation.forState.delete(target);}
                 if(meta.kind==='end'){
+                    simulation.executingStep=false;
+                    if(simulation.frames.length){simulationFinishFunction(node);return;}
                     simulation.visited.add(node.id);simulation.stepCount++;simulation.current=null;simulationPause();
                     document.getElementById('sim-status').textContent='✓ انتهى التنفيذ بعد '+simulation.stepCount+' خطوات.';
                     simulationPaint();updateSimulationUI();return;
                 }
                 const edge=simulationNextEdge(node.id,branch);
                 simulation.visited.add(node.id);simulation.stepCount++;simulation.current=edge.to;simulation.lastEdge=edge.id;
+                // Successful execution ends this node's call cache; a loop may revisit it.
+                simulation.callResults=new Map();
                 document.getElementById('sim-status').textContent='الخطوة '+simulation.stepCount+': '+detail;
-                // Do not use focusOnDiagramBounds: it changes zoom/pan and project history.
                 simulationPaint();updateSimulationUI();
-            }catch(error){simulationPause();if(error instanceof SimulationInputRequired){
-                    simulation.pendingInput=error.message;const block=document.getElementById('sim-input-block');block.hidden=false;
+            }catch(error){
+                simulation.executingStep=false;
+                if(error instanceof SimulationCallRequired){
+                    try{simulationStepIntoCall(error);}catch(e){simulationPause();document.getElementById('sim-status').textContent='توقفت المحاكاة: '+e.message;}
+                }else if(error instanceof SimulationInputRequired){
+                    simulationPause();simulation.pendingInput=error.message;
+                    const block=document.getElementById('sim-input-block');block.hidden=false;
                     document.getElementById('sim-input-prompt').textContent=error.message;
                     document.getElementById('sim-status').textContent='يتطلب هذا السطر إدخال قيمة. أدخلها ثم أكد.';
                     document.getElementById('sim-input').focus();
-                }else{document.getElementById('sim-status').textContent='توقفت المحاكاة: '+error.message;}
-                updateSimulationUI();}
+                }else{simulationPause();document.getElementById('sim-status').textContent='توقفت المحاكاة: '+error.message;}
+                updateSimulationUI();
+            }finally{simulation.executingStep=false;}
         }
         function simulationProvideInput(){if(!simulation.pendingInput)return;
             const input=document.getElementById('sim-input');simulation.inputValues=[input.value];input.value='';
@@ -1294,6 +1395,14 @@ if score >= 90:
         function updateSimulationUI(){const body=document.getElementById('sim-variables');if(!body)return;body.replaceChildren();
             Object.entries(simulation.variables).forEach(([k,v])=>{const row=document.createElement('tr');const name=document.createElement('td'),value=document.createElement('td');name.textContent=k;value.textContent=simRepresent(v);row.append(name,value);body.appendChild(row);});
             document.getElementById('sim-output').textContent=simulation.outputs.join('\n');
+            const stack=document.getElementById('sim-call-path');
+            if(stack){
+                const chain=['البرنامج الرئيسي',...simulation.frames.slice(1).map(f=>f.functionName||'دالة'),simulation.functionName].filter(Boolean);
+                stack.textContent=simulation.functionName ? chain.join('  ←  ') : 'البرنامج الرئيسي';
+                stack.title='مسار استدعاء الدوال أثناء المحاكاة';
+            }
+            const varsTitle=document.getElementById('sim-variables-title');
+            if(varsTitle)varsTitle.textContent=simulation.functionName?'متغيرات الدالة '+simulation.functionName:'متغيرات البرنامج الرئيسي';
             const next=document.getElementById('sim-next');if(next)next.disabled=!simulation.current||!!simulation.pendingInput;
             const run=document.getElementById('sim-run');if(run)run.disabled=!simulation.current||!!simulation.pendingInput||!!simulation.timer;
         }
@@ -4482,7 +4591,7 @@ print(result)`;
    const startN=state.nodes.find(n=>n.id===start);startN.w=236;startN.h=64;startN.sim={kind:'start'};
    const flow=drawPythonFlowStatements(def.statements,[{id:start,label:''}],x,y+110);
    if(flow.breaks.length||flow.continues.length)throw Error('خطأ في break / continue داخل الدالة '+def.name);
-   const returns=state.nodes.filter(n=>n.sim?.source?.startsWith('__school_return__ = '));
+   const returns=state.nodes.slice(initialNodeCount).filter(n=>n.sim?.source?.startsWith('__school_return__ = '));
    returns.forEach(n=>{
      n.type='return';n.color='#bbf7d0';n.text='return '+n.sim.source.slice('__school_return__ = '.length);
      n.w=Math.max(175,n.w);n.h=Math.max(55,n.h);
