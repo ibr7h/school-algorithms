@@ -764,6 +764,8 @@
                         <button onclick="loadSamplePythonCode()" class="text-[11px] text-sky-400 hover:text-sky-300 underline">مثال جاهز</button>
                     </div>
                 </div>
+                <p id="python-workspace-code-label" class="text-[11px] text-slate-300" aria-live="polite">كود منطقة العمل الحالية</p>
+                <button type="button" onclick="restoreLastConvertedPythonCode()" class="text-[11px] px-2 py-1 rounded bg-slate-700 text-sky-200 border border-slate-600" title="استرجاع آخر كود تم تحويله لهذه المنطقة دون التأثير على الرسم">استعادة آخر كود محوّل</button>
                 <textarea id="python-input-area" dir="ltr" rows="5" placeholder="# الصق كود بايثون هنا...&#10;x = int(input('Enter number'))&#10;if x >= 50:&#10;    print('ناجح')&#10;else:&#10;    print('راسب')" class="w-full p-2.5 text-xs font-mono bg-slate-900 text-slate-100 border border-slate-700 rounded focus:outline-none focus:border-amber-400 text-left resize-y"></textarea>
                 <button id="python-append-btn" onclick="convertPythonToFlowchart('append')" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg shadow transition">
                     ＋ إضافة مخطط جديد في نفس المنطقة
@@ -971,6 +973,7 @@ if score >= 90:
     print("Grade: A")"></textarea>
                 </div>
             </div>
+            <p id="python-modal-workspace-label" class="text-xs text-slate-600" aria-live="polite">كود منطقة العمل الحالية</p>
             <div class="python-idle-statusbar" id="python-idle-status" aria-live="off">Ln 1, Col 1  |  Python 3  |  UTF-8</div>
             <p id="python-modal-conversion-status" class="text-xs text-rose-700" role="alert" aria-live="polite"></p>
             <div class="flex flex-wrap justify-end gap-2 pt-1">
@@ -1559,6 +1562,10 @@ if score >= 90:
                     throw new Error('ملف مشروع تالف أو كبير جدًا');
                 }
                 ids.add(ws.id);
+                if (['pythonCode', 'pythonConvertedCode'].some(key =>
+                    ws[key] !== undefined && (typeof ws[key] !== 'string' || ws[key].length > 100000))) {
+                    throw new Error('كود بايثون محفوظ بصيغة غير صالحة في إحدى مناطق العمل');
+                }
                 if (ws.inlineFunctions !== undefined && (
                     !Array.isArray(ws.inlineFunctions) || ws.inlineFunctions.length > 100 ||
                     ws.inlineFunctions.some(fn => !fn || typeof fn.name !== 'string' ||
@@ -1748,6 +1755,8 @@ if score >= 90:
             const firstWs = {
                 id: 'ws_' + workspaceCounter++,
                 name: 'منطقة 1: مثال الكتاب',
+                pythonCode: '',
+                pythonConvertedCode: '',
                 nodes: [],
                 edges: [],
                 texts: [],
@@ -1770,6 +1779,67 @@ if score >= 90:
             refreshHistoryButtons();
         }
 
+        // The Python source belongs to its workspace, not to a single global textarea.
+        // Temporarily suspend synchronization only while the function importer passes a
+        // stripped main-program source to the existing conversion engine.
+        let pythonWorkspaceSyncPaused = false;
+        function savePythonCodeToWorkspace() {
+            if (pythonWorkspaceSyncPaused) return;
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            const sidebar = document.getElementById('python-input-area');
+            const modal = document.getElementById('python-import-modal');
+            const editor = document.getElementById('python-modal-input');
+            if (!ws || !sidebar) return;
+            const editorOpen = !!modal && !modal.classList.contains('hidden');
+            ws.pythonCode = editorOpen && editor ? editor.value : sidebar.value;
+        }
+        function restoreWorkspacePythonEditor() {
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            if (!ws) return;
+            const code = typeof ws.pythonCode === 'string' ? ws.pythonCode : '';
+            const sidebar = document.getElementById('python-input-area');
+            const editor = document.getElementById('python-modal-input');
+            if (sidebar) sidebar.value = code;
+            if (editor) { editor.value = code; updatePythonEditorView(); }
+            const conversionStatus = document.getElementById('python-conversion-status');
+            const modalStatus = document.getElementById('python-modal-conversion-status');
+            if (conversionStatus) conversionStatus.textContent = '';
+            if (modalStatus) modalStatus.textContent = '';
+            const label = document.getElementById('python-workspace-code-label');
+            if (label) label.textContent = 'كود خاص بـ ' + ws.name;
+            const labelModal = document.getElementById('python-modal-workspace-label');
+            if (labelModal) labelModal.textContent = 'المنطقة الحالية: ' + ws.name;
+        }
+        function pythonCodeChanged(source) {
+            const sidebar = document.getElementById('python-input-area');
+            const editor = document.getElementById('python-modal-input');
+            if (source === editor && sidebar) sidebar.value = editor.value;
+            if (source === sidebar && editor) { editor.value = sidebar.value; updatePythonEditorView(); }
+            savePythonCodeToWorkspace();
+            trackProjectChange();
+        }
+        function recordConvertedPythonCode(source) {
+            if (pythonWorkspaceSyncPaused) return;
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            if (!ws) return;
+            ws.pythonConvertedCode = source;
+            trackProjectChange();
+        }
+        function restoreLastConvertedPythonCode() {
+            const ws = workspaces.find(w => w.id === activeWorkspaceId);
+            if (!ws || typeof ws.pythonConvertedCode !== 'string' || !ws.pythonConvertedCode) {
+                showPythonConversionStatus('لم يُحوَّل كود بايثون في هذه المنطقة بعد.', true);
+                return;
+            }
+            const sidebar = document.getElementById('python-input-area');
+            const editor = document.getElementById('python-modal-input');
+            if (sidebar) sidebar.value = ws.pythonConvertedCode;
+            if (editor) { editor.value = ws.pythonConvertedCode; updatePythonEditorView(); }
+            savePythonCodeToWorkspace();
+            trackProjectChange();
+            showPythonConversionStatus('استُعيد آخر كود تم تحويله في المنطقة الحالية.');
+        }
+
         function syncStateFromActiveWorkspace() {
             const ws = workspaces.find(w => w.id === activeWorkspaceId);
             if (!ws) return;
@@ -1780,6 +1850,7 @@ if score >= 90:
             state.zoom = ws.zoom || 1;
             state.panX = ws.panX || 0;
             state.panY = ws.panY || 0;
+            restoreWorkspacePythonEditor();
             applyViewportTransform();
             const printTitle = document.getElementById('print-workspace-title');
             if (printTitle) printTitle.innerText = ws.name;
@@ -1788,6 +1859,7 @@ if score >= 90:
         function saveStateToActiveWorkspace() {
             const ws = workspaces.find(w => w.id === activeWorkspaceId);
             if (!ws) return;
+            savePythonCodeToWorkspace();
             ws.nodes = state.nodes;
             ws.edges = state.edges;
             ws.texts = state.texts;
@@ -1819,6 +1891,8 @@ if score >= 90:
             const newWs = {
                 id: 'ws_' + workspaceCounter++,
                 name: `منطقة عمل ${workspaces.length + 1}`,
+                pythonCode: '',
+                pythonConvertedCode: '',
                 nodes: [],
                 edges: [],
                 texts: [],
@@ -1875,6 +1949,9 @@ if score >= 90:
 
         function deleteCurrentWorkspace() {
             if (workspaces.length <= 1) {
+                const ws = workspaces.find(w => w.id === activeWorkspaceId);
+                if (ws) { ws.pythonCode = ''; ws.pythonConvertedCode = ''; }
+                restoreWorkspacePythonEditor();
                 state.nodes.length = 0;
                 state.edges.length = 0;
                 state.texts.length = 0;
@@ -3305,6 +3382,8 @@ if score >= 90:
             input.value = sidebar.value || '';
             updatePythonEditorView();
             if (openIfNeeded && modal) modal.classList.remove('hidden');
+            savePythonCodeToWorkspace();
+            trackProjectChange();
             if (openIfNeeded) {
                 requestAnimationFrame(() => {
                     input.focus();
@@ -3317,6 +3396,8 @@ if score >= 90:
             const { input, sidebar } = getPythonModalElements();
             if (!input || !sidebar) return;
             sidebar.value = input.value;
+            savePythonCodeToWorkspace();
+            trackProjectChange();
         }
 
         function openPythonImportModal() {
@@ -3334,6 +3415,7 @@ if score >= 90:
             if (!input) return;
             input.value = '';
             updatePythonEditorView();
+            pythonCodeChanged(input);
             input.focus();
         }
 
@@ -3357,6 +3439,10 @@ else:
     result = "راسب"
 print(result)`;
             document.getElementById('python-input-area').value = sample;
+            const mirror = document.getElementById('python-modal-input');
+            if (mirror) { mirror.value = sample; updatePythonEditorView(); }
+            savePythonCodeToWorkspace();
+            trackProjectChange();
             if (openInModal) {
                 const editor = document.getElementById('python-modal-input');
                 editor.value = sample;
@@ -3379,6 +3465,8 @@ print(result)`;
             }
             const modalStatus = document.getElementById('python-modal-conversion-status');
             if (modalStatus) modalStatus.textContent = '';
+            savePythonCodeToWorkspace();
+            trackProjectChange();
             showPythonConversionStatus('اختر إضافة مخطط جديد لإدراج المثال دون حذف المخططات السابقة.');
         }
 
@@ -3924,6 +4012,7 @@ print(result)`;
                     showPythonConversionStatus('لم تُعثر على أشكال Graphviz قابلة للتحويل؛ بقيت الرسوم محفوظة.', true);
                     return false;
                 }
+                recordConvertedPythonCode(rawCode);
                 return true;
             }
 
@@ -3946,7 +4035,9 @@ print(result)`;
                     ...(previous.routing ? {routing: previous.routing} : {})});
             });
 
-            return finishPythonImport(previousNodeCount, previousBounds, mode);
+            const converted = finishPythonImport(previousNodeCount, previousBounds, mode);
+            if (converted) recordConvertedPythonCode(rawCode);
+            return converted;
             } catch (error) {
                 // An unexpected render/geometry error must never destroy existing work.
                 if (typeof previousSnapshot === 'string') applyProjectSnapshot(previousSnapshot);
@@ -4394,11 +4485,13 @@ print(result)`;
                     closeMobileTools();
                 }
             });
+            const pythonSidebarInput = document.getElementById('python-input-area');
+            pythonSidebarInput?.addEventListener('input', () => pythonCodeChanged(pythonSidebarInput));
             const pythonModalInput = document.getElementById('python-modal-input');
             if (pythonModalInput) {
                 pythonModalInput.addEventListener('input', () => {
                     updatePythonEditorView();
-                    syncSidebarFromPythonEditor();
+                    pythonCodeChanged(pythonModalInput);
                 });
                 pythonModalInput.addEventListener('scroll', updatePythonEditorView);
                 ['click', 'keyup', 'select'].forEach(name => pythonModalInput.addEventListener(name, updatePythonEditorCaretStatus));
@@ -4411,6 +4504,7 @@ print(result)`;
                         pythonModalInput.value = value.slice(0, start) + '    ' + value.slice(end);
                         pythonModalInput.selectionStart = pythonModalInput.selectionEnd = start + 4;
                         updatePythonEditorView();
+                        pythonCodeChanged(pythonModalInput);
                     }
                 });
             }
@@ -4623,7 +4717,9 @@ print(result)`;
    const initialWorkspace=activeWorkspaceId;
    const area=document.getElementById('python-input-area');
    const originalCode=area.value;
+   savePythonCodeToWorkspace();
    busy=true;
+   pythonWorkspaceSyncPaused=true;
    try{
      if(prepared.main){
        area.value=prepared.main;
@@ -4639,11 +4735,19 @@ print(result)`;
      switchWorkspace(initialWorkspace);
      renderWorkspaceTabs();render();commitProjectChange();persistProject();
      updateFunctionList();
+     const active=workspaces.find(w=>w.id===initialWorkspace);
+     if(active) active.pythonConvertedCode=originalCode;
      status(`تم تحويل ${prepared.defs.length} دالة داخل منطقة العمل نفسها. انقر مرتين على شكل الاستدعاء للانتقال إلى رسم الدالة.`);
      return true;
    }catch(e){
      applyProjectSnapshot(originalProject);status('لم تُعدّل المخططات: '+e.message,true);return false;
-   }finally{area.value=originalCode;busy=false;}
+   }finally{
+     area.value=originalCode;
+     pythonWorkspaceSyncPaused=false;
+     savePythonCodeToWorkspace();
+     queueProjectSave();
+     busy=false;
+   }
  }
  if(typeof rawConverter==='function'){
    window.convertPythonToFlowchart=async function(mode='append'){
