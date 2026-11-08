@@ -137,6 +137,30 @@
             cursor: crosshair !important;
         }
 
+
+        #edges-layer {z-index:5;pointer-events:none;}
+        #nodes-layer {z-index:4;}
+        /* Precise flow connectors: any border point, draggable endpoints and bends. */
+        .edge-loop {stroke:#0f766e;stroke-width:3.2;stroke-dasharray:11 6;}
+        .edge-loop:hover {stroke:#0d9488;stroke-width:4.2;}
+        .edge-loop.edge-selected {stroke:#2563eb;stroke-width:4;}
+        .edge-hit-area {stroke:transparent;stroke-width:18;fill:none;pointer-events:stroke;cursor:pointer;}
+        .connect-mode-cursor .edge-hit-area,.connect-mode-cursor .edge-path {pointer-events:none;}
+        .edge-control-handle {stroke:#fff;stroke-width:2.5;cursor:grab;pointer-events:all;touch-action:none;}
+        .edge-control-handle:active {cursor:grabbing;}
+        .edge-control-handle.edge-from {fill:#2563eb;}
+        .edge-control-handle.edge-to {fill:#d97706;}
+        .edge-control-handle.edge-bend {fill:#0d9488;}
+        .edge-port {position:absolute;width:14px;height:14px;box-sizing:border-box;border-radius:50%;background:#fff;
+            border:3px solid #0d9488;z-index:15;cursor:crosshair;pointer-events:auto;touch-action:none;
+            transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(255,255,255,.7);}
+        .edge-port {opacity:.36;transition:opacity .15s,background-color .15s;}
+        .node-base:hover .edge-port,.node-base.edge-connect-source .edge-port {opacity:1;}
+        .edge-port:hover {background:#99f6e4;transform:translate(-50%,-50%) scale(1.2);}
+        #edge-routing-controls:not(.hidden) {display:block;}
+        @media (max-width:960px) {.edge-control-handle {stroke-width:3;} .edge-port {width:18px;height:18px;}}
+        @media print {.edge-control-handle,.edge-hit-area,.edge-port {display:none!important;}}
+
         /* Resize Handle */
         .resize-handle {
             position: absolute;
@@ -664,7 +688,7 @@
                     </div>
 
                     <button id="btn-connect" onclick="toggleConnectMode()" class="w-full text-right px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition flex items-center justify-between">
-                        <span class="text-xs font-bold">🔗 رسم سهم توصيل (Line)</span>
+                        <span class="text-xs font-bold">🔗 ربط حر من محيط الأشكال</span>
                         <span class="text-[11px] bg-slate-700 px-2 py-0.5 rounded text-slate-300" id="connect-status">متوقف</span>
                     </button>
                     <button onclick="selectAllElements()" class="w-full text-right px-4 py-2 bg-indigo-900/50 hover:bg-indigo-800/70 text-indigo-200 rounded-lg border border-indigo-700/60 transition flex items-center justify-between">
@@ -726,6 +750,18 @@
                             <button onclick="setQuickEdgeLabel('نعم')" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 rounded">نعم</button>
                             <button onclick="setQuickEdgeLabel('لا')" class="bg-rose-700 hover:bg-rose-600 text-white text-xs font-bold py-1.5 rounded">لا</button>
                         </div>
+                    </div>
+
+                    <!-- Selected arrow controls: route/loop style and geometry reset -->
+                    <div id="edge-routing-controls" class="hidden bg-slate-900/70 border border-slate-600 rounded-lg p-2.5 space-y-2">
+                        <label for="edge-route-kind" class="block text-xs text-slate-300 font-semibold">مسار السهم</label>
+                        <select id="edge-route-kind" onchange="updateSelectedEdgeRouting(this.value)" class="w-full bg-slate-800 text-white border border-slate-600 rounded px-2 py-2 text-xs">
+                            <option value="normal">سهم عادي</option>
+                            <option value="loop-back">↶ سهم تكرار متقطع</option>
+                            <option value="return-right">سهم التفاف من الجانب</option>
+                        </select>
+                        <p class="text-[11px] text-slate-300 leading-5">حدد السهم ثم اسحب الدائرتين الزرقاء والبرتقالية لتغيير نقاط الاتصال، والدائرة الخضراء لتحريك مساره.</p>
+                        <button type="button" onclick="resetSelectedEdgeGeometry()" class="w-full px-2 py-2 rounded-md text-xs bg-slate-700 hover:bg-slate-600 text-white">إعادة توجيه السهم تلقائيًا</button>
                     </div>
 
                     <!-- Node Size Controls -->
@@ -906,6 +942,9 @@
                         <marker id="arrowhead-selected" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto">
                             <polygon points="0 0, 8 3.5, 0 7" fill="#2563eb" />
                         </marker>
+                        <marker id="arrowhead-loop" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+                            <polygon points="0 0, 9 4.5, 0 9" fill="#0f766e" />
+                        </marker>
                         <marker id="note-dot" markerWidth="8" markerHeight="8" refX="4" refY="4">
                             <circle cx="4" cy="4" r="3" fill="#0284c7" />
                         </marker>
@@ -1044,6 +1083,8 @@ if score >= 90:
         let isAllSelected = false;
         let currentMode = 'select'; // 'select', 'connect', 'pan', 'pen'
         let connectStartNodeId = null;
+        let connectStartAnchor = null;
+        let edgeDrag = null;
 
         let isDragging = false;
         let isResizing = false;
@@ -1589,7 +1630,12 @@ if score >= 90:
                 for (const e of ws.edges) {
                     if (!e || typeof e.id !== 'string' || edgeIds.has(e.id) || !nodeIds.has(e.from) ||
                         !nodeIds.has(e.to) || typeof e.label !== 'string' || e.label.length > 10000 ||
-                        (e.routing !== undefined && !['return-right', 'loop-back'].includes(e.routing))) {
+                        (e.routing !== undefined && !['return-right', 'loop-back'].includes(e.routing)) ||
+                        ['fromAnchor','toAnchor'].some(key => e[key] !== undefined && (
+                            !e[key] || !Number.isFinite(e[key].u) || !Number.isFinite(e[key].v) ||
+                            e[key].u < -0.5 || e[key].u > 1.5 || e[key].v < 0 || e[key].v > 1)) ||
+                        (e.via !== undefined && (!e.via || !Number.isFinite(e.via.x) ||
+                            !Number.isFinite(e.via.y) || Math.abs(e.via.x)>10000000 || Math.abs(e.via.y)>10000000))) {
                         throw new Error('أسهم غير صالحة في ملف المشروع');
                     }
                     edgeIds.add(e.id);
@@ -2251,6 +2297,7 @@ if score >= 90:
         function setMode(mode, keepAllSelected = false) {
             currentMode = mode;
             connectStartNodeId = null;
+            connectStartAnchor = null;
             if (!keepAllSelected) {
                 isAllSelected = false;
                 updateSelectAllBadge();
@@ -2274,7 +2321,7 @@ if score >= 90:
 
             if (mode === 'connect') {
                 btnConnect.classList.add('ring-2', 'ring-pink-500');
-                status.innerText = 'نشط (اختر شكلين)';
+                status.innerText = 'نشط (حدد نقطتي اتصال)';
                 status.classList.replace('bg-slate-700', 'bg-pink-600');
                 status.classList.replace('text-slate-300', 'text-white');
                 canvasContainer.classList.add('connect-mode-cursor');
@@ -2306,6 +2353,13 @@ if score >= 90:
             const fontSizeBox = document.getElementById('prop-fontsize-container');
             const shapeTypeContainer = document.getElementById('prop-shape-type-container');
             fontSizeBox.classList.add('hidden');
+            const edgeRoutingPanel = document.getElementById('edge-routing-controls');
+            edgeRoutingPanel?.classList.toggle('hidden', !selectedEdgeId);
+            if (selectedEdgeId) {
+                const edge = state.edges.find(e => e.id === selectedEdgeId);
+                const routeSelect = document.getElementById('edge-route-kind');
+                if (routeSelect && edge) routeSelect.value = edge.routing || 'normal';
+            }
 
             if (selectedNodeId) {
                 propertiesPanel.classList.remove('opacity-50', 'pointer-events-none');
@@ -2502,6 +2556,19 @@ if score >= 90:
 
         // Window Mouse Events for Dragging, Panning, Pen Drawing & Resizing
         window.addEventListener('mousemove', (e) => {
+            if(edgeDrag) {
+                if(e.buttons===0) {finishEdgeDrag(e);commitProjectChange();return;}
+                const edge=state.edges.find(x=>x.id===edgeDrag.id);
+                if(!edge)return;
+                const worldPt=clientToWorld(e.clientX,e.clientY);
+                if(edgeDrag.kind==='bend'){
+                    edge.via={x:worldPt.x,y:worldPt.y};
+                }else{
+                    const target=state.nodes.find(n=>n.id===edge[edgeDrag.kind]);
+                    if(target)edge[edgeDrag.kind+'Anchor']=closestEdgeAnchor(target,worldPt);
+                }
+                renderEdges();return;
+            }
             if (e.buttons === 0) {
                 isDragging = false;
                 isResizing = false;
@@ -2594,7 +2661,8 @@ if score >= 90:
         });
 
         // إصلاح مشكلة التصاق الشكل بالفأرة عند إفلات الزر
-        window.addEventListener('mouseup', () => {
+        window.addEventListener('mouseup', (event) => {
+            finishEdgeDrag(event);
             commitProjectChange();
             isDragging = false;
             isResizing = false;
@@ -2606,6 +2674,7 @@ if score >= 90:
         });
 
         window.addEventListener('blur', () => {
+            finishEdgeDrag(null);
             commitProjectChange();
             isDragging = false;
             isResizing = false;
@@ -2775,27 +2844,7 @@ if score >= 90:
                     }
 
                     if (currentMode === 'connect') {
-                        if (!connectStartNodeId) {
-                            connectStartNodeId = node.id;
-                            render();
-                        } else if (connectStartNodeId !== node.id) {
-                            const startNode = state.nodes.find(n => n.id === connectStartNodeId);
-                            let defaultLabel = '';
-                            if (startNode && startNode.type === 'decision') {
-                                const existingOut = state.edges.filter(ed => ed.from === startNode.id);
-                                defaultLabel = existingOut.length === 0 ? 'T (نعم)' : 'F (لا)';
-                            }
-                            const newEdgeId = 'e' + edgeCounter++;
-                            state.edges.push({
-                                id: newEdgeId,
-                                from: connectStartNodeId,
-                                to: node.id,
-                                label: defaultLabel
-                            });
-                            setMode('select');
-                            selectEdge(newEdgeId);
-                            render();
-                        }
+                        connectAtNode(node,worldPt);
                     } else {
                         selectNode(node.id);
                         isDragging = true;
@@ -2805,6 +2854,22 @@ if score >= 90:
                     }
                 });
 
+                if(currentMode==='connect' && connectStartNodeId===node.id) el.classList.add('edge-connect-source');
+                if(currentMode==='connect') {
+                    const locations=[{u:.5,v:0},{u:1,v:.5},{u:.5,v:1},{u:0,v:.5}];
+                    locations.forEach((loc,index)=>{
+                        const port=document.createElement('div');
+                        port.className='edge-port';
+                        port.style.left=(loc.u*100)+'%';port.style.top=(loc.v*100)+'%';
+                        port.title='نقطة اتصال — يمكن كذلك الضغط على أي موضع من محيط الشكل';
+                        port.setAttribute('data-node-port',index);
+                        port.addEventListener('mousedown',ev=>{
+                            ev.preventDefault();ev.stopPropagation();
+                            connectAtNode(node,{x:node.x+node.w*loc.u,y:node.y+node.h*loc.v},loc);
+                        });
+                        el.appendChild(port);
+                    });
+                }
                 nodesLayer.appendChild(el);
 
                 // Render Textbook-style Callout Note Card if node has a note
@@ -2879,103 +2944,194 @@ if score >= 90:
             });
         }
 
+
+        const edgeClamp = (v, a, b) => Math.max(a, Math.min(b, v));
+        function nodeOutlinePoints(n) {
+            const {x,y,w,h}=n;
+            if (n.type === 'decision') return [
+                {x:x+w/2,y:y+2},{x:x+w-2,y:y+h/2},{x:x+w/2,y:y+h-2},{x:x+2,y:y+h/2}
+            ];
+            if (n.type === 'io') {
+                const shift=h*Math.tan(Math.PI/9)/2;
+                return [{x:x+shift,y},{x:x+w+shift,y},{x:x+w-shift,y:y+h},{x:x-shift,y:y+h}];
+            }
+            if (n.type === 'start') {
+                const r=Math.min(h/2,w/2);const pts=[];
+                // Capsule perimeter, including the curved caps for accurate attachment.
+                for (let j=0;j<=12;j++){const a=-Math.PI/2+j*Math.PI/12;pts.push({x:x+w-r+r*Math.cos(a),y:y+h/2+r*Math.sin(a)});}
+                for (let j=0;j<=12;j++){const a=Math.PI/2+j*Math.PI/12;pts.push({x:x+r+r*Math.cos(a),y:y+h/2+r*Math.sin(a)});}
+                return pts;
+            }
+            return [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
+        }
+        function closestEdgeAnchor(node,pt) {
+            const poly=nodeOutlinePoints(node);
+            let best=null, bestD=Infinity;
+            for(let i=0;i<poly.length;i++) {
+                const a=poly[i],b=poly[(i+1)%poly.length];
+                const dx=b.x-a.x,dy=b.y-a.y,den=dx*dx+dy*dy||1;
+                const t=edgeClamp(((pt.x-a.x)*dx+(pt.y-a.y)*dy)/den,0,1);
+                const x=a.x+t*dx,y=a.y+t*dy,dist=(pt.x-x)**2+(pt.y-y)**2;
+                if(dist<bestD){bestD=dist;best={u:edgeClamp((x-node.x)/node.w,-0.5,1.5),v:edgeClamp((y-node.y)/node.h,0,1)};}
+            }
+            return best;
+        }
+        function pointFromEdgeAnchor(n,anchor,other,side='from') {
+            if(anchor && Number.isFinite(anchor.u)&&Number.isFinite(anchor.v))
+                return {x:n.x+n.w*anchor.u,y:n.y+n.h*anchor.v};
+            const c={x:n.x+n.w/2,y:n.y+n.h/2};
+            const dx=(other.x+other.w/2)-c.x,dy=(other.y+other.h/2)-c.y;
+            if(Math.abs(dx)+Math.abs(dy)<1) return closestEdgeAnchor(n,{x:c.x+n.w,y:c.y});
+            // Intersect the center-to-center ray with the true outline segments.
+            const poly=nodeOutlinePoints(n);let found=null,minT=Infinity;
+            for(let i=0;i<poly.length;i++){
+                const a=poly[i],b=poly[(i+1)%poly.length];const vx=b.x-a.x,vy=b.y-a.y;
+                const cross=dx*vy-dy*vx;
+                if(Math.abs(cross)<1e-9)continue;
+                const ax=a.x-c.x,ay=a.y-c.y;
+                const t=(ax*vy-ay*vx)/cross,u=(ax*dy-ay*dx)/cross;
+                if(t>=0&&u>=0&&u<=1&&t<minT){minT=t;found={x:c.x+dx*t,y:c.y+dy*t};}
+            }
+            return found||{x:c.x,y:c.y};
+        }
+        function nearestNodeAtWorld(pt,otherId) {
+            return [...state.nodes].reverse().find(n => n.id!==otherId &&
+                pt.x>=n.x-14&&pt.x<=n.x+n.w+14 && pt.y>=n.y-14&&pt.y<=n.y+n.h+14);
+        }
+        function setSelectedEdgeRoute(value) {
+            const e=state.edges.find(x=>x.id===selectedEdgeId);if(!e)return;
+            if(value==='normal')delete e.routing;
+            else if(['loop-back','return-right'].includes(value))e.routing=value;
+            else return;
+            delete e.via;renderEdges();trackProjectChange();
+        }
+        function updateSelectedEdgeRouting(value){setSelectedEdgeRoute(value);}
+        function resetSelectedEdgeGeometry(){
+            const e=state.edges.find(x=>x.id===selectedEdgeId);if(!e)return;
+            delete e.fromAnchor;delete e.toAnchor;delete e.via;
+            renderEdges();trackProjectChange();
+        }
+        function startEdgeDrag(id,kind,ev) {
+            if(currentMode!=='select')return;
+            ev.stopPropagation();ev.preventDefault();
+            const e=state.edges.find(x=>x.id===id);if(!e)return;
+            selectEdge(id);
+            edgeDrag={id,kind};renderEdges();
+        }
+        function finishEdgeDrag(ev){
+            if(!edgeDrag)return;
+            const {id,kind}=edgeDrag;const e=state.edges.find(x=>x.id===id);
+            if(e && ev && (kind==='from'||kind==='to')){
+                const pt=clientToWorld(ev.clientX,ev.clientY);
+                const target=nearestNodeAtWorld(pt,kind==='from'?e.to:e.from);
+                if(target) {
+                    e[kind]=target.id;
+                    e[kind+'Anchor']=closestEdgeAnchor(target,pt);
+                }
+            }
+            edgeDrag=null;renderEdges();updatePropertiesPanel();
+        }
+        function edgeGeometry(edge,n1,n2){
+            const start=pointFromEdgeAnchor(n1,edge.fromAnchor,n2);
+            const end=pointFromEdgeAnchor(n2,edge.toAnchor,n1,'to');
+            let d,label={x:(start.x+end.x)/2,y:(start.y+end.y)/2-9},bend;
+            const fmt=n=>Number(n.toFixed(2));
+            const M=p=>`${fmt(p.x)} ${fmt(p.y)}`;
+            if(edge.routing==='loop-back'||edge.routing==='return-right'){
+                // The loop is intentionally distinct: teal dashed, rounded corners, reverse arrow.
+                const outer=Math.max(start.x,end.x)+85;
+                const x=edge.via && Number.isFinite(edge.via.x) ? Math.max(Math.max(start.x,end.x)+20,edge.via.x) : outer;
+                const sy=start.y,ty=end.y,dy=ty>=sy?1:-1;
+                const r=Math.min(18,Math.abs(ty-sy)/3,Math.max(7,(x-Math.max(start.x,end.x))/3));
+                d=`M ${M(start)} L ${fmt(x-r)} ${fmt(sy)} Q ${fmt(x)} ${fmt(sy)} ${fmt(x)} ${fmt(sy+dy*r)} `+
+                  `L ${fmt(x)} ${fmt(ty-dy*r)} Q ${fmt(x)} ${fmt(ty)} ${fmt(x-r)} ${fmt(ty)} L ${M(end)}`;
+                label={x:(start.x+x)/2,y:sy-12};bend={x,y:(sy+ty)/2};
+            }else if(edge.via && Number.isFinite(edge.via.x)&&Number.isFinite(edge.via.y)){
+                const x=edge.via.x,y=edge.via.y;
+                d=`M ${M(start)} L ${fmt(x)} ${fmt(start.y)} L ${fmt(x)} ${fmt(y)} `+
+                    `L ${fmt(end.x)} ${fmt(y)} L ${M(end)}`;
+                label={x:(start.x+x)/2,y:start.y-11};bend={x,y};
+            }else{
+                const deltaX=Math.abs(end.x-start.x),deltaY=Math.abs(end.y-start.y);
+                if(deltaX<22 || deltaY<22){d=`M ${M(start)} L ${M(end)}`;}
+                else if(deltaX>deltaY*1.25){
+                    const x=(start.x+end.x)/2;
+                    d=`M ${M(start)} L ${fmt(x)} ${fmt(start.y)} L ${fmt(x)} ${fmt(end.y)} L ${M(end)}`;
+                }else{
+                    const y=(start.y+end.y)/2;
+                    d=`M ${M(start)} L ${fmt(start.x)} ${fmt(y)} L ${fmt(end.x)} ${fmt(y)} L ${M(end)}`;
+                }
+                bend={x:(start.x+end.x)/2,y:(start.y+end.y)/2};
+            }
+            return {d,start,end,bend,label};
+        }
+        function connectAtNode(node,clickedPt,explicitAnchor=null){
+            const center={x:node.x+node.w/2,y:node.y+node.h/2};
+            const dist=Math.hypot(clickedPt.x-center.x,clickedPt.y-center.y);
+            const anchor=explicitAnchor||(dist < Math.min(node.w,node.h)*0.18 ? null : closestEdgeAnchor(node,clickedPt));
+            if(!connectStartNodeId){connectStartNodeId=node.id;connectStartAnchor=anchor;renderNodes();return;}
+            if(connectStartNodeId===node.id){connectStartAnchor=anchor;renderNodes();return;}
+            const source=state.nodes.find(n=>n.id===connectStartNodeId);
+            const count=state.edges.filter(e=>e.from===connectStartNodeId).length;
+            const label=source?.type==='decision' ? (count===0?'نعم':count===1?'لا':'') : '';
+            const edge={id:'e'+edgeCounter++,from:connectStartNodeId,to:node.id,label};
+            if(connectStartAnchor)edge.fromAnchor=connectStartAnchor;
+            if(anchor)edge.toAnchor=anchor;
+            state.edges.push(edge);
+            setMode('select');selectEdge(edge.id);render();commitProjectChange();
+        }
+
         function renderEdges() {
             trackProjectChange();
             edgesGroup.innerHTML = '';
             notesLinesGroup.innerHTML = '';
             
             state.edges.forEach(edge => {
-                const n1 = state.nodes.find(n => n.id === edge.from);
-                const n2 = state.nodes.find(n => n.id === edge.to);
-                
-                if (!n1 || !n2) return;
-
-                const c1x = n1.x + n1.w / 2;
-                const c1y = n1.y + n1.h / 2;
-                const endPt = getIntersection(n1, n2);
-
-                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                let dPath = `M ${c1x} ${c1y} L ${endPt.x} ${endPt.y}`;
-                let labelX = (c1x + endPt.x) / 2;
-                let labelY = (c1y + endPt.y) / 2 - 8;
-
-                // Join accepted branches to the continuation from a right-side
-                // corridor instead of crossing the remaining elif decisions.
-                if (edge.routing === 'loop-back') {
-                    // Outer-right return corridor: body/continue -> the loop header.
-                    const fromX = n1.x + n1.w;
-                    const fromY = n1.y + n1.h / 2;
-                    const targetX = n2.x + n2.w;
-                    const targetY = n2.y + n2.h / 2;
-                    const outerX = Math.max(fromX, targetX) + 115;
-                    dPath = `M ${fromX} ${fromY} L ${outerX} ${fromY} L ${outerX} ${targetY} L ${targetX} ${targetY}`;
-                    labelX = (fromX + outerX) / 2;
-                    labelY = fromY - 9;
-                } else if (edge.routing === 'return-right') {
-                    const fromX = n1.x + n1.w;
-                    const fromY = n1.y + n1.h / 2;
-                    const targetX = n2.x + n2.w;
-                    const targetY = n2.y + n2.h / 2;
-                    const outerX = Math.max(fromX, targetX) + 155;
-                    dPath = `M ${fromX} ${fromY} L ${outerX} ${fromY} L ${outerX} ${targetY} L ${targetX} ${targetY}`;
-                    labelX = (fromX + outerX) / 2;
-                    labelY = fromY - 9;
-                } else if (n1.type === 'decision' && Math.abs(c1x - (n2.x + n2.w/2)) <= 45) {
-                    // Direct NO path leaves the lower tip of the diamond.
-                    const fromX = c1x;
-                    const fromY = n1.y + n1.h - 2;
-                    dPath = `M ${fromX} ${fromY} L ${endPt.x} ${endPt.y}`;
-                    labelX = fromX + 23;
-                    labelY = (fromY + endPt.y) / 2;
-                } else if (n1.type === 'decision' && Math.abs(c1x - (n2.x + n2.w/2)) > 45) {
-                    const targetX = n2.x + n2.w / 2;
-                    const targetTopY = n2.y;
-                    const startEdgeX = targetX > c1x ? (n1.x + n1.w - 2) : (n1.x + 2);
-                    dPath = `M ${startEdgeX} ${c1y} L ${targetX} ${c1y} L ${targetX} ${targetTopY}`;
-                    labelX = (startEdgeX + targetX) / 2;
-                    labelY = c1y - 10;
-                } else if (n2.type === 'io' && Math.abs(c1x - (n2.x + n2.w/2)) > 45) {
-                    const targetX = n2.x + n2.w / 2;
-                    const midY = (n1.y + n1.h + n2.y) / 2;
-                    dPath = `M ${c1x} ${n1.y + n1.h} L ${c1x} ${midY} L ${targetX} ${midY} L ${targetX} ${n2.y}`;
-                }
-
-                path.setAttribute('d', dPath);
-                path.setAttribute('class', `edge-path ${edge.id === selectedEdgeId ? 'edge-selected' : ''} ${simulation.active && edge.id === simulation.lastEdge ? 'sim-flow-path' : ''}`);
-                path.setAttribute('data-edge-id', edge.id);
-                
-                const markerId = edge.id === selectedEdgeId ? 'url(#arrowhead-selected)' : 'url(#arrowhead)';
-                path.setAttribute('marker-end', markerId);
-                
-                path.addEventListener('mousedown', (e) => {
-                    e.stopPropagation();
-                    if (currentMode === 'select') {
-                        selectEdge(edge.id);
-                        renderEdges();
-                    }
-                });
-
+                const n1=state.nodes.find(n=>n.id===edge.from),n2=state.nodes.find(n=>n.id===edge.to);
+                if(!n1||!n2)return;
+                const geometry=edgeGeometry(edge,n1,n2);
+                const isSelected=edge.id===selectedEdgeId;
+                const loop=edge.routing==='loop-back';
+                const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+                path.setAttribute('d',geometry.d);
+                path.setAttribute('data-edge-id',edge.id);
+                path.setAttribute('class','edge-path'+(loop?' edge-loop':'')+(isSelected?' edge-selected':'')+
+                    (simulation.active && edge.id===simulation.lastEdge?' sim-flow-path':''));
+                path.setAttribute('marker-end',isSelected?'url(#arrowhead-selected)':loop?'url(#arrowhead-loop)':'url(#arrowhead)');
                 edgesGroup.appendChild(path);
-
-                // Add Text Label if exists
-                if (edge.label) {
-                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                    text.setAttribute('x', labelX);
-                    text.setAttribute('y', labelY);
-                    text.setAttribute('text-anchor', 'middle');
-                    text.setAttribute('fill', '#334155');
-                    text.setAttribute('font-size', '14px');
-                    text.setAttribute('font-weight', 'bold');
-                    text.style.pointerEvents = 'none';
-                    text.textContent = edge.label;
-                    
-                    const textOutline = text.cloneNode(true);
-                    textOutline.setAttribute('stroke', '#e8e6df');
-                    textOutline.setAttribute('stroke-width', '5');
-                    textOutline.setAttribute('stroke-linejoin', 'round');
-                    
-                    edgesGroup.appendChild(textOutline);
-                    edgesGroup.appendChild(text);
+                const hit=path.cloneNode(false);
+                hit.removeAttribute('marker-end');
+                hit.setAttribute('class','edge-hit-area');
+                hit.setAttribute('data-edge-id',edge.id);
+                hit.addEventListener('mousedown',ev=>{
+                    if(currentMode!=='select')return;
+                    ev.stopPropagation();selectEdge(edge.id);renderEdges();
+                });
+                edgesGroup.appendChild(hit);
+                const label= edge.label || (loop?'↶ تكرار':'');
+                if(label){
+                    const drawLabel=(outlined)=>{
+                        const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+                        t.setAttribute('x',geometry.label.x);t.setAttribute('y',geometry.label.y);
+                        t.setAttribute('text-anchor','middle');t.setAttribute('fill',loop?'#0f766e':'#334155');
+                        t.setAttribute('font-size',loop?'13px':'14px');t.setAttribute('font-weight','bold');
+                        t.style.pointerEvents='none';t.textContent=label;
+                        if(outlined){t.setAttribute('stroke','#e8e6df');t.setAttribute('stroke-width','5');t.setAttribute('stroke-linejoin','round');}
+                        edgesGroup.appendChild(t);
+                    };
+                    drawLabel(true);drawLabel(false);
+                }
+                if(isSelected && currentMode==='select'){
+                    for(const [kind,p,r] of [['from',geometry.start,9],['to',geometry.end,9],['bend',geometry.bend,8]]){
+                        if(!p)continue;
+                        const h=document.createElementNS('http://www.w3.org/2000/svg','circle');
+                        h.setAttribute('cx',p.x);h.setAttribute('cy',p.y);h.setAttribute('r',r);
+                        h.setAttribute('class','edge-control-handle edge-'+kind);
+                        h.setAttribute('data-edge-handle',kind);
+                        h.setAttribute('aria-label',kind==='from'?'تعديل بداية السهم':kind==='to'?'تعديل نهاية السهم':'تحريك مسار السهم');
+                        h.addEventListener('mousedown',ev=>startEdgeDrag(edge.id,kind,ev));
+                        edgesGroup.appendChild(h);
+                    }
                 }
             });
 
@@ -3148,18 +3304,23 @@ if score >= 90:
               <pattern id="flowchart-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 0 0 H 32 M 0 0 V 32" fill="none" stroke="#d6d3cb" stroke-width="1"/></pattern>
               <filter id="flowchart-shadow" x="-20%" y="-35%" width="140%" height="180%"><feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/><feOffset in="blur" dx="0" dy="3" result="offset"/><feFlood flood-color="#000" flood-opacity=".08" result="dark"/><feComposite in="dark" in2="offset" operator="in" result="shadow"/><feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
               <marker id="arrowhead" markerWidth="8" markerHeight="7" refX="7" refY="3.5" orient="auto"><polygon points="0 0,8 3.5,0 7" fill="#57534e"/></marker>
+              <marker id="arrowhead-loop" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><polygon points="0 0,9 4.5,0 9" fill="#0f766e"/></marker>
               <marker id="note-dot" markerWidth="8" markerHeight="8" refX="4" refY="4"><circle cx="4" cy="4" r="3" fill="#0284c7"/></marker>
             </defs>`;
-            svg += `<style>.edge-path{fill:none;stroke:#57534e;stroke-width:2.5;stroke-linejoin:round}.flowchart-text{font-family:'Cairo','Inter',Arial,sans-serif}</style>`;
+            svg += `<style>.edge-path{fill:none;stroke:#57534e;stroke-width:2.5;stroke-linejoin:round}.edge-loop{stroke:#0f766e;stroke-width:3.2;stroke-dasharray:11 6}.flowchart-text{font-family:'Cairo','Inter',Arial,sans-serif}</style>`;
             svg += `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="#e8e6df"/>`;
             svg += `<rect x="${vx}" y="${vy}" width="${vw}" height="${vh}" fill="url(#flowchart-grid)"/>`;
 
             // Keep exactly the same routed arrows, decision labels and note curves
             // as the live renderer. Never export the selected/highlighted state.
-            svg += `<g id="export-edges">${edgesGroup.innerHTML
-                .replace(/edge-path edge-selected/g, 'edge-path')
-                .replace(/url\(#arrowhead-selected\)/g, 'url(#arrowhead)')
-            }</g>`;
+            const exportEdgeLayer=edgesGroup.cloneNode(true);
+            exportEdgeLayer.querySelectorAll('.edge-hit-area,.edge-control-handle').forEach(el=>el.remove());
+            exportEdgeLayer.querySelectorAll('.edge-path').forEach(path=>{
+                const loop=path.classList.contains('edge-loop');
+                path.classList.remove('edge-selected','sim-flow-path');
+                path.setAttribute('marker-end',loop?'url(#arrowhead-loop)':'url(#arrowhead)');
+            });
+            svg += `<g id="export-edges">${exportEdgeLayer.innerHTML}</g>`;
             svg += `<g id="export-note-connectors">${notesLinesGroup.innerHTML}</g>`;
             svg += `<g id="export-freehand">${drawingsGroup.innerHTML}</g>`;
 
@@ -3489,6 +3650,9 @@ print(result)`;
                             n.y + (n.noteOffsetY ?? -10) - 10, 255, 135);
                 }
             });
+            // Include user-draggable waypoints and routed loop corridors in fit-all.
+            state.edges.forEach(e => {if(e.via && Number.isFinite(e.via.x)&&Number.isFinite(e.via.y))
+                addRect(e.via.x-12,e.via.y-12,24,24);});
             // Include routed merge corridors, which extend outside the nodes.
             const includedIds = new Set(nodes.map(n => n.id));
             state.edges.forEach(edge => {
