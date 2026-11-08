@@ -760,7 +760,7 @@
                             <option value="loop-back">↶ سهم تكرار متقطع</option>
                             <option value="return-right">سهم التفاف من الجانب</option>
                         </select>
-                        <p class="text-[11px] text-slate-300 leading-5">حدد السهم ثم اسحب الدائرتين الزرقاء والبرتقالية لتغيير نقاط الاتصال، والدائرة الخضراء لتحريك مساره.</p>
+                        <p class="text-[11px] text-slate-300 leading-5">حدد السهم ثم يتحدد اتجاه السهم تلقائيًا حسب موقع الأشكال. اسحب الدائرتين الزرقاء والبرتقالية لتثبيت نقاط الاتصال، والدائرة الخضراء لتخصيص المسار.</p>
                         <button type="button" onclick="resetSelectedEdgeGeometry()" class="w-full px-2 py-2 rounded-md text-xs bg-slate-700 hover:bg-slate-600 text-white">إعادة توجيه السهم تلقائيًا</button>
                     </div>
 
@@ -4689,6 +4689,7 @@ print(result)`;
         };
     </script>
     <script src="./school_canvas_tools.js"></script>
+    <script src="./smart-arrow-routing.js"></script>
 <script>
 /* Move the *real* properties controls, never duplicate input IDs or event handlers. */
 (() => {
