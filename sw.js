@@ -1,7 +1,7 @@
 /* Scope-relative app shell: no CDN dependencies, no cross-origin caching. */
-const VERSION='school-algorithms-pwa-flexible-arrows-v1-20261108';
+const VERSION='school-algorithms-pwa-direction-aware-arrows-v1-20261108';
 const CACHE=`${VERSION}-shell`;
-const SHELL=["./","./index.html","./tailwind-local.css","./app-ui.css","./school_canvas_tools.css","./school_canvas_tools.js","./ui-icons.js","./pwa.js","./school-learning-hub.css","./school-learning-hub.js","./school-practice.css","./school-practice.js","./manifest.webmanifest","./icons/icon.svg","./icons/icon-192.png","./icons/icon-512.png","./icons/maskable-512.png","./icons/apple-touch-icon.png"];
+const SHELL=["./","./index.html","./tailwind-local.css","./app-ui.css","./school_canvas_tools.css","./school_canvas_tools.js","./smart-arrow-routing.js","./ui-icons.js","./pwa.js","./school-learning-hub.css","./school-learning-hub.js","./school-practice.css","./school-practice.js","./manifest.webmanifest","./icons/icon.svg","./icons/icon-192.png","./icons/icon-512.png","./icons/maskable-512.png","./icons/apple-touch-icon.png"];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL))));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
  for(const key of await caches.keys())if(key.startsWith('school-algorithms-pwa-') && key!==CACHE)await caches.delete(key);
